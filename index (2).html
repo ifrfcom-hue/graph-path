@@ -566,7 +566,16 @@ window.graphAPI = {
     selected = null; nodes.forEach(clampNode); onChange();
   }
 };
-
+window.graphAPI = {
+  get: () => ({ nodes, edges }),
+  set: g => {
+    pushHistory();
+    nodes = g.nodes; edges = g.edges;
+    nid = Math.max(-1, ...nodes.map(n => n.id)) + 1;
+    eid = Math.max(-1, ...edges.map(e => e.id)) + 1;
+    selected = null; onChange();
+  }
+};
 updateVB();
 result = analyze();
 renderAll();
@@ -590,13 +599,13 @@ import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, se
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ▼▼▼ 여기에 Firebase 콘솔에서 복사한 firebaseConfig 값을 붙여 넣으세요 ▼▼▼
-const firebaseConfig = {
-  apiKey: "여기에-붙여넣기",
-  authDomain: "여기에-붙여넣기",
-  projectId: "여기에-붙여넣기",
-  storageBucket: "여기에-붙여넣기",
-  messagingSenderId: "여기에-붙여넣기",
-  appId: "여기에-붙여넣기"
+{
+  apiKey: "AIzaSyC-_6HCnsPtc1k2YIKBwk9n71Pfjx1dQ_c",
+  authDomain: "graph-path-7f1c5.firebaseapp.com",
+  projectId: "graph-path-7f1c5",
+  storageBucket: "graph-path-7f1c5.firebasestorage.app",
+  messagingSenderId: "305047029541",
+  appId: "1:305047029541:web:60254a16d6cae6ea47fccc"
 };
 // ▲▲▲ 여기까지 ▲▲▲
 
@@ -639,6 +648,48 @@ if (firebaseConfig.apiKey.includes("붙여넣기")) {
     });
   }, e => say("목록을 불러오지 못했습니다: " + e.message, true));
 }
+</script>
+<section class="card" style="max-width:1180px;margin:12px auto">
+  <h2 style="margin:0 0 8px;font-size:18px">반 친구들의 그래프</h2>
+  <input id="who" placeholder="학번 이름 (예: 20315 김햇살)" style="padding:8px;border-radius:8px;border:1px solid var(--line)">
+  <button id="save">내 그래프 제출</button>
+  <ul id="list" style="padding-left:18px;font-size:14px"></ul>
+</section>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = { /* 여기에 콘솔에서 복사한 값 붙여넣기 */ };
+const db = getFirestore(initializeApp(firebaseConfig));
+const col = collection(db, "graphs");
+
+document.querySelector("#save").onclick = async () => {
+  const who = document.querySelector("#who").value.trim();
+  const g = window.graphAPI.get();
+  if (!who) return alert("학번과 이름을 입력하세요.");
+  if (!g.nodes.length) return alert("그래프를 먼저 그려 주세요.");
+  try {
+    await addDoc(col, { who, nodes: g.nodes, edges: g.edges, at: serverTimestamp() });
+    alert("제출했습니다!");
+  } catch (e) { alert("제출하지 못했습니다: " + e.message); }
+};
+
+const list = document.querySelector("#list");
+onSnapshot(query(col, orderBy("at", "desc"), limit(40)), snap => {
+  list.innerHTML = "";
+  snap.forEach(doc => {
+    const g = doc.data();
+    const li = document.createElement("li");
+    li.textContent = g.who + " · 정점 " + g.nodes.length + " · 간선 " + g.edges.length + " ";
+    const btn = document.createElement("button");
+    btn.textContent = "불러오기";
+    btn.onclick = () => { window.graphAPI.set(g); scrollTo({ top: 0, behavior: "smooth" }); };
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+});
 </script>
 </body>
 </html>
