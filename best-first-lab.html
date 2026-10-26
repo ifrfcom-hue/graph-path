@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>최상우선탐색 실습실</title>
+<style>
+:root{
+  --bg:#f5f6fa;--card:#ffffff;--ink:#1d2433;--muted:#667085;--line:#e1e4ea;
+  --edge:#98a2b3;--node:#ffffff;--nodeStroke:#344054;--bad:#e5484d;
+  --gr:#e8590c;--gr-soft:#ffe8d6;--as:#2563eb;--as-soft:#dbe7ff;
+  --sel:#12b76a;--sel-soft:#d3f8e2;--btn:#eef0f4;--btn-ink:#1d2433;--pill:#ffffff;--custom:#7c3aed;--gold:#b7791f;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0f1420;--card:#171e2c;--ink:#e6e9f0;--muted:#98a2b3;--line:#2a3345;
+  --edge:#5d687d;--node:#222b3d;--nodeStroke:#cfd6e4;--gr-soft:#7c2d12;--as-soft:#1e3a8a;--sel-soft:#064e3b;
+  --btn:#242d40;--btn-ink:#e6e9f0;--pill:#1b2333;--custom:#a78bfa;--gold:#f6c453;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0f1420;--card:#171e2c;--ink:#e6e9f0;--muted:#98a2b3;--line:#2a3345;
+  --edge:#5d687d;--node:#222b3d;--nodeStroke:#cfd6e4;--gr-soft:#7c2d12;--as-soft:#1e3a8a;--sel-soft:#064e3b;
+  --btn:#242d40;--btn-ink:#e6e9f0;--pill:#1b2333;--custom:#a78bfa;--gold:#f6c453;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+header h1{font-size:clamp(21px,4.6vw,30px);margin:4px 0 2px}
+header p{margin:0 0 14px;color:var(--muted);font-size:14px}
+h2{font-size:19px;margin:0 0 6px}
+h3{font-size:15px;margin:14px 0 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.stack{display:grid;gap:12px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+button,select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--btn);color:var(--btn-ink);
+  border-radius:10px;padding:8px 12px;min-height:40px;cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--ink);color:var(--card);font-weight:700;border-color:var(--ink)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--sel);outline-offset:1px}
+input[type=text],input[type=number],textarea{font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);min-width:0}
+textarea{width:100%;min-height:96px;resize:vertical}
+
+/* 팀 정보 */
+.team{display:grid;grid-template-columns:110px 1fr 2fr;gap:8px}
+@media (max-width:640px){.team{grid-template-columns:1fr 1fr}.team .mem{grid-column:1/-1}}
+.team label{display:grid;gap:2px;font-size:12px;color:var(--muted);font-weight:600}
+.saved{font-size:12px;color:var(--muted);margin-top:6px}
+
+/* 탭 */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;margin:12px 0}
+.tabs button{white-space:nowrap;border-radius:999px}
+.tabs button.on{background:var(--ink);color:var(--card);font-weight:700}
+.tabs button .ck{color:var(--sel);font-weight:800;margin-left:4px}
+.tabs button.on .ck{color:#7ee2b0}
+.steps{margin:0;padding-left:22px}
+.steps li{margin:4px 0}
+.rulebox{background:var(--btn);border-radius:10px;padding:10px 12px;font-size:14px}
+.rulebox b{color:var(--ink)}
+
+/* 예측 */
+.qrow{border-top:1px solid var(--line);padding:10px 0}
+.qrow:first-of-type{border-top:0}
+.qt{font-weight:700;font-size:14px;margin-bottom:6px}
+.seq{display:flex;flex-wrap:wrap;gap:4px;min-height:38px;align-items:center;padding:4px 8px;border:1px dashed var(--line);border-radius:10px;margin-bottom:6px}
+.seq .tok{font-weight:800;background:var(--btn);border-radius:8px;padding:2px 9px}
+.seq .ar{color:var(--muted)}
+.seq .ph{color:var(--muted);font-size:13px}
+.pick{display:flex;flex-wrap:wrap;gap:5px}
+.pick button{min-width:44px;font-weight:800}
+.yn{display:flex;gap:6px}
+.yn button.on{background:var(--ink);color:var(--card)}
+.fb{font-size:13.5px;margin-top:6px;font-weight:600}
+.okc{color:var(--sel);font-weight:700}.noc{color:var(--bad);font-weight:700}
+.score{display:inline-block;font-weight:800;font-size:15px;padding:4px 12px;border-radius:999px;background:var(--sel-soft);color:var(--ink)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+
+/* 체크리스트 */
+.checks{list-style:none;padding:0;margin:8px 0;display:grid;gap:4px;font-size:14px}
+.checks li::before{content:"○";display:inline-block;width:1.4em;color:var(--muted);font-weight:800}
+.checks li.ok::before{content:"✓";color:var(--sel)}
+.checks li.bonus.ok::before{content:"★";color:var(--gold)}
+.banner{padding:10px 12px;border-radius:10px;font-weight:700;font-size:14px}
+.banner.ok{background:var(--sel-soft)}
+.banner.no{background:var(--btn);color:var(--muted)}
+
+/* 작업대 */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.seg{display:inline-flex;flex-wrap:wrap;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.seg button{border:0;border-radius:0}
+.seg button.on{background:var(--ink);color:var(--card);font-weight:700}
+.spacer{flex:1}
+#status{font-size:13px;color:var(--muted);margin:2px 2px 8px;min-height:20px}
+.benchTitle{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+svg{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none}
+#edWrap{position:relative}
+#editor{touch-action:none;background:radial-gradient(circle,var(--line) 1.2px,transparent 1.3px) 0 0/24px 24px;border-radius:10px}
+#editor.ro{touch-action:auto}
+#pop{position:absolute;z-index:6;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;
+  box-shadow:0 8px 24px #0000002a;display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:250px}
+#pop .t{width:100%;font-size:13px;font-weight:700}
+#pop input{width:80px}
+#pop button{min-height:36px;padding:6px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:13px}
+.chip{background:var(--btn);border-radius:999px;padding:3px 10px}
+.chip.warn{color:var(--bad);font-weight:600}
+.lockbox{margin-top:12px;padding:18px;border:2px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted);font-weight:600}
+
+.player{position:sticky;bottom:env(safe-area-inset-bottom,0px);z-index:5;margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 18px #0000001a}
+.player button{min-width:44px}
+#play{background:var(--ink);color:var(--card);font-weight:700;min-width:84px}
+#stepLabel{font-variant-numeric:tabular-nums;font-size:14px;font-weight:600}
+.speed{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-left:auto}
+.summary{overflow-x:auto;margin-bottom:12px}
+.compare{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:820px){.compare.two{grid-template-columns:1fr 1fr}}
+.panel h2{margin:0;font-size:18px;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.panel .rule{font-size:13px;color:var(--muted);margin:2px 0 8px}
+.panel.g{border-top:5px solid var(--gr)}
+.panel.a{border-top:5px solid var(--as)}
+.msg{font-weight:700;margin:8px 0 6px;font-size:14px;min-height:21px}
+.qlabel{font-size:12px;color:var(--muted);margin:6px 0 3px;font-weight:600}
+.queue{display:flex;flex-wrap:wrap;gap:5px;min-height:28px}
+.q{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:2px 8px;background:var(--bg);font-variant-numeric:tabular-nums}
+.q b{margin-right:4px}
+.panel.g .q.next{border-color:var(--gr);background:var(--gr-soft)}
+.panel.a .q.next{border-color:var(--as);background:var(--as-soft)}
+.q.new::after{content:" 새로";font-size:11px;color:var(--sel);font-weight:700}
+.q.upd::after{content:" 갱신";font-size:11px;color:var(--custom);font-weight:700}
+.empty-q{font-size:13px;color:var(--muted)}
+.log{margin:8px 0 0;padding:6px 8px 6px 28px;max-height:150px;overflow:auto;font-size:13px;background:var(--btn);border-radius:8px}
+.log li{color:var(--muted)}
+.log li.cur{color:var(--ink);font-weight:700}
+.result{font-size:13.5px;margin-top:8px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line)}
+.legend{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.legend em{font-style:normal;display:inline-flex;align-items:center;gap:4px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+thead th{font-size:13px;color:var(--muted)}
+td:first-child{font-weight:600}
+.tbl{overflow-x:auto}
+.ok{color:var(--sel);font-weight:700}.no{color:var(--bad);font-weight:700}
+.glist{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:6px}
+.glist li{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:8px 10px;background:var(--btn);border-radius:10px;font-size:14px}
+.glist li span{min-width:0}
+.ans{white-space:pre-wrap;font-size:13px;background:var(--btn);border-radius:8px;padding:8px;margin:4px 0}
+
+/* SVG */
+.e{stroke:var(--edge);fill:none;pointer-events:none;stroke-linecap:round}
+.e-hit{stroke:transparent;fill:none;pointer-events:stroke;cursor:pointer}
+.erase .e-hit:hover,.edit .e-hit:hover{stroke:#7c3aed33}
+.hit{fill:transparent;cursor:pointer}
+.ro .hit,.ro .e-hit{cursor:default}
+.nd .c{fill:var(--node);stroke:var(--nodeStroke)}
+.nd.sel .c{fill:var(--sel-soft);stroke:var(--sel)}
+.lb{text-anchor:middle;dominant-baseline:central;fill:var(--ink);font-weight:800;pointer-events:none}
+.nm{text-anchor:middle;dominant-baseline:hanging;fill:var(--muted);font-weight:600;pointer-events:none}
+.wp rect{fill:var(--pill);stroke:var(--line)} .wp text{fill:var(--muted);text-anchor:middle;dominant-baseline:central;font-weight:700;pointer-events:none}
+.wp.cu rect{stroke:var(--custom)} .wp.cu text{fill:var(--custom)}
+.hv{text-anchor:middle;dominant-baseline:central;fill:var(--muted);font-weight:700;pointer-events:none}
+.hv.cu{fill:var(--custom)}
+.nm,.hv{paint-order:stroke;stroke:var(--card);stroke-width:5px;stroke-linejoin:round}
+.tg rect{fill:var(--sel)} .tg.goal rect{fill:var(--bad)}
+.tg text{fill:#fff;text-anchor:middle;dominant-baseline:central;font-weight:800;pointer-events:none}
+.empty{fill:var(--muted);text-anchor:middle}
+.b{stroke:var(--edge);fill:none;opacity:.55;stroke-linecap:round}
+.tree-g{stroke:var(--gr);fill:none;stroke-dasharray:10 9;opacity:.85}
+.tree-a{stroke:var(--as);fill:none;stroke-dasharray:10 9;opacity:.85}
+.path-g{stroke:var(--gr);fill:none;stroke-linecap:round}
+.path-a{stroke:var(--as);fill:none;stroke-linecap:round}
+.pn .c{fill:var(--node);stroke:var(--edge)}
+.pn.open-g .c{stroke:var(--gr);stroke-dasharray:6 5}
+.pn.open-a .c{stroke:var(--as);stroke-dasharray:6 5}
+.pn.closed-g .c{fill:var(--gr-soft);stroke:var(--gr)}
+.pn.closed-a .c{fill:var(--as-soft);stroke:var(--as)}
+.vb rect{fill:var(--pill);stroke:var(--line)} .vb text{fill:var(--muted);text-anchor:middle;dominant-baseline:central;font-weight:700;pointer-events:none}
+.vb.on-g rect{stroke:var(--gr)} .vb.on-g text{fill:var(--gr)}
+.vb.on-a rect{stroke:var(--as)} .vb.on-a text{fill:var(--as)}
+.ring{fill:none;stroke:var(--sel);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.ring{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>최상우선탐색 실습실</h1>
+    <p>캠퍼스 로봇 대작전 · 팀 미션 — 탐지기(최상우선탐색)와 A* 로봇의 길 찾기를 예측하고, 직접 함정 지도를 설계해 팀 과제로 제출합니다.</p>
+  </header>
+
+  <section class="card" id="teamCard">
+    <div class="team">
+      <label>반<input type="text" id="tCls" maxlength="20" placeholder="예: 2-1"></label>
+      <label>팀 이름<input type="text" id="tName" maxlength="30" placeholder="예: 3모둠 길잡이"></label>
+      <label class="mem">팀원 (학번 이름, 쉼표로 구분)<input type="text" id="tMem" maxlength="100" placeholder="예: 20301 김하늘, 20302 이바다"></label>
+    </div>
+    <div class="saved" id="savedNote">입력한 내용은 이 기기에 자동 저장됩니다. 팀원 중 한 명의 기기에서 함께 진행하세요.</div>
+  </section>
+
+  <nav class="tabs" id="tabs" aria-label="미션">
+    <button data-tab="start">시작하기</button>
+    <button data-tab="m1">미션 1 · 탐지기 예측<span class="ck" id="ck-m1"></span></button>
+    <button data-tab="m2">미션 2 · A* 예측<span class="ck" id="ck-m2"></span></button>
+    <button data-tab="m3">미션 3 · 함정 지도<span class="ck" id="ck-m3"></span></button>
+    <button data-tab="m4">미션 4 · 생각 정리<span class="ck" id="ck-m4"></span></button>
+    <button data-tab="submit">팀 제출<span class="ck" id="ck-submit"></span></button>
+  </nav>
+
+  <!-- 시작 -->
+  <section class="card pane" data-pane="start">
+    <h2>오늘의 미션</h2>
+    <p class="small muted" style="margin-top:0">캠퍼스 배달 로봇이 정문(S)에서 기숙사(G)까지 길을 찾습니다. 두 로봇의 생각 방식을 예측하고 비교해 보세요.</p>
+    <ol class="steps">
+      <li><b>미션 1</b> 탐지기 로봇(최상우선탐색)이 노드를 꺼내는 순서, 경로, 총 거리를 예측합니다.</li>
+      <li><b>미션 2</b> 같은 지도에서 A* 로봇의 탐색을 예측하고 두 로봇을 비교합니다.</li>
+      <li><b>미션 3</b> 탐지기 로봇이 최단 경로를 놓치는 <b>함정 지도</b>를 팀이 직접 설계합니다.</li>
+      <li><b>미션 4</b> 탐구 질문에 답하며 생각을 정리합니다.</li>
+      <li><b>팀 제출</b> 모든 결과를 한 번에 제출하고, 다른 팀의 함정 지도에 도전합니다.</li>
+    </ol>
+    <h3>탐색 규칙 (예측할 때 꼭 지키기)</h3>
+    <div class="rulebox stack" style="gap:6px">
+      <div>• 간선 위 숫자 = 실제 거리(비용). 노드 위 <b>h</b> = 도착점까지의 직선거리(예상 거리).</div>
+      <div>• <b>탐지기(최상우선탐색)</b>: 열린 목록에서 <b>f(n) = h(n)</b>이 가장 작은 노드를 꺼냅니다.</div>
+      <div>• <b>A*</b>: 열린 목록에서 <b>f(n) = g(n) + h(n)</b>이 가장 작은 노드를 꺼냅니다. g(n)은 출발점에서 그 노드까지 온 거리입니다.</div>
+      <div>• 노드를 꺼내면 닫힌 목록에 넣고, 이웃 노드를 열린 목록에 추가합니다. 이미 닫힌 노드는 다시 넣지 않습니다.</div>
+      <div>• A*는 열린 목록에 있는 노드를 더 짧은 길로 발견하면 g 값을 <b>갱신</b>합니다. 탐지기는 처음 발견한 길을 그대로 씁니다.</div>
+      <div>• 값이 같으면 h가 작은 노드, 그것도 같으면 알파벳이 빠른 노드를 먼저 꺼냅니다.</div>
+      <div>• 도착점을 열린 목록에서 <b>꺼내는 순간</b> 탐색이 끝납니다(발견했을 때가 아님).</div>
+    </div>
+    <div class="actions"><button class="primary" data-go="m1">미션 1 시작 →</button></div>
+  </section>
+
+  <!-- 미션 1 -->
+  <section class="card pane" data-pane="m1">
+    <h2>미션 1 · 탐지기 로봇의 길 찾기 예측</h2>
+    <p class="small muted" style="margin-top:0">아래 캠퍼스 지도를 보고 <b>최상우선탐색(f = h)</b>이 어떻게 움직일지 팀원과 상의해 예측하세요. 활동지에 열린 목록·닫힌 목록을 적어 가며 풀면 좋습니다. 채점하면 시뮬레이터가 공개됩니다.</p>
+    <div id="p-m1"></div>
+  </section>
+
+  <!-- 미션 2 -->
+  <section class="card pane" data-pane="m2">
+    <h2>미션 2 · A* 로봇의 길 찾기 예측</h2>
+    <p class="small muted" style="margin-top:0">같은 지도에서 <b>A*(f = g + h)</b>를 예측하세요. 열린 목록의 각 노드에 g + h 값을 계산해 적고, 더 짧은 길이 나타나면 갱신하는 것을 잊지 마세요. 채점하면 두 로봇이 나란히 공개됩니다.</p>
+    <div id="p-m2"></div>
+  </section>
+
+  <!-- 미션 3 -->
+  <section class="card pane" data-pane="m3">
+    <h2>미션 3 · 탐지기 로봇을 속이는 함정 지도 설계</h2>
+    <p class="small muted" style="margin-top:0">탐지기 로봇은 남은 직선거리만 봅니다. 탐지기 로봇이 <b>최단 경로를 놓치도록</b> 아래 작업대에 우리 팀만의 캠퍼스 지도를 그려 보세요. 공사 중인 길, 언덕길 같은 이야기를 붙이면 더 좋습니다.</p>
+    <div class="banner no" id="trapBanner">조건을 모두 만족하면 함정 성공!</div>
+    <ul class="checks" id="trapChecks"></ul>
+    <div class="small muted">작업대 사용법: 빈 곳 탭 = 노드 추가 · 노드 → 노드 탭 = 길 연결 · 끌기 = 이동 · 🔢 값 편집 = 거리/h 직접 입력 · 🚩/🏁 = 출발/도착 지정</div>
+    <label class="small" style="display:grid;gap:4px;margin-top:10px;font-weight:600">우리 함정 지도의 이름<input type="text" id="trapTitle" maxlength="30" placeholder="예: 급식실 지름길의 함정"></label>
+  </section>
+
+  <!-- 미션 4 -->
+  <section class="card pane" data-pane="m4">
+    <h2>미션 4 · 생각 정리</h2>
+    <p class="small muted" style="margin-top:0">팀원과 토의한 내용을 정리해 적으세요. 각 질문에 2~4문장이면 충분합니다.</p>
+    <div class="stack">
+      <label class="stack" style="gap:4px"><b class="small">Q1. 미션 1에서 탐지기 로봇이 최단 경로를 찾지 못한 이유를 f(n) = h(n)과 연결해 설명하세요.</b><textarea id="q1" maxlength="1500"></textarea></label>
+      <label class="stack" style="gap:4px"><b class="small">Q2. A*가 최단 경로를 보장하려면 h(n)이 어떤 조건을 만족해야 할까요? 그렇지 않으면 어떤 일이 생길까요?</b><textarea id="q2" maxlength="1500"></textarea></label>
+      <label class="stack" style="gap:4px"><b class="small">Q3. 우리 팀 함정 지도의 핵심 아이디어는 무엇인가요? 실생활에서 비슷한 상황(내비게이션, 로봇 청소기 등)을 예로 들어 보세요.</b><textarea id="q3" maxlength="1500"></textarea></label>
+    </div>
+  </section>
+
+  <!-- 제출 -->
+  <section class="card pane" data-pane="submit">
+    <h2>팀 제출</h2>
+    <div class="tbl"><table><tbody id="subSummary"></tbody></table></div>
+    <div class="actions">
+      <button class="primary" id="submitBtn">우리 팀 결과 제출하기</button>
+      <span class="small" id="subMsg"></span>
+    </div>
+    <p class="small muted">여러 번 제출해도 됩니다. 선생님은 팀별 마지막 제출을 확인합니다. 미션 1·2 점수는 처음 채점한 결과로 기록됩니다.</p>
+    <h3>다른 팀의 함정 지도에 도전하기</h3>
+    <p class="small muted" style="margin:0">지도를 불러와 탐지기 로봇이 어디서 속는지 먼저 예측한 다음, ▶ 재생으로 확인해 보세요.</p>
+    <ul class="glist" id="gallery"><li><span class="muted">불러오는 중…</span></li></ul>
+  </section>
+
+  <!-- 교사용 -->
+  <section class="card" id="teacherView" hidden style="margin-top:12px">
+    <h2>교사용 제출 현황</h2>
+    <p class="small muted" style="margin-top:0">팀별 마지막 제출을 보여 줍니다. 주소 끝의 <b>#teacher</b>를 지우면 학생 화면으로 돌아갑니다.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>반</th><th>팀</th><th>팀원</th><th>미션1</th><th>미션2</th><th>함정 지도</th><th>제출</th><th></th></tr></thead>
+      <tbody id="tBody"><tr><td colspan="8" class="muted">불러오는 중…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <!-- 작업대 -->
+  <section class="card" id="bench" style="margin-top:12px">
+    <div class="benchTitle"><h2 id="benchTitle" style="margin:0">작업대</h2><span class="small muted" id="benchSub"></span></div>
+    <div class="toolbar" id="toolbar">
+      <div class="seg" role="group" aria-label="모드">
+        <button id="mDraw" class="on">✏️ 그리기</button>
+        <button id="mEdit">🔢 값 편집</button>
+        <button id="mStart">🚩 출발</button>
+        <button id="mGoal">🏁 도착</button>
+        <button id="mErase">🧹 지우기</button>
+      </div>
+      <button id="undo">↶ 되돌리기</button>
+      <button id="clear">전체 삭제</button>
+    </div>
+    <div id="status"></div>
+    <div id="edWrap">
+      <svg id="editor" viewBox="0 0 1000 600" aria-label="지도"></svg>
+      <div id="pop" hidden>
+        <div class="t" id="popTitle"></div>
+        <input id="popIn" type="number" min="0" step="1" inputmode="numeric" aria-label="값 입력">
+        <button id="popOk">확인</button>
+        <button id="popAuto">자동값</button>
+        <button id="popX" aria-label="닫기">✕</button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="lockbox" id="lockbox" hidden>🔒 예측을 채점하면 탐색 과정이 공개됩니다.</div>
+  </section>
+
+  <div id="results">
+    <div class="player">
+      <button id="first" title="처음">⏮</button>
+      <button id="prev" title="이전 단계">◀</button>
+      <button id="play">▶ 재생</button>
+      <button id="next" title="다음 단계">▶|</button>
+      <button id="last" title="끝">⏭</button>
+      <span id="stepLabel">단계 0 / 0</span>
+      <label class="speed">속도 <input type="range" id="speed" min="300" max="2000" step="100" value="1000" style="direction:rtl"></label>
+    </div>
+    <section class="card summary" id="sumCard">
+      <table>
+        <thead><tr><th>결과</th><th style="color:var(--gr)">탐지기 (최상우선)</th><th style="color:var(--as)" class="acol">A*</th></tr></thead>
+        <tbody id="sumBody"></tbody>
+      </table>
+    </section>
+    <section class="compare two" id="compare">
+      <div class="card panel g">
+        <h2><span class="dot" style="background:var(--gr)"></span>탐지기 (최상우선탐색)</h2>
+        <div class="rule">f(n) = h(n) · 남은 예상 거리가 가장 작은 노드부터</div>
+        <svg id="svgGreedy" viewBox="0 0 1000 600"></svg>
+        <div class="msg" id="gMsg"></div>
+        <div class="qlabel">열린 목록 (왼쪽이 다음에 꺼낼 노드)</div>
+        <div class="queue" id="gOpen"></div>
+        <div class="qlabel">닫힌 목록 (꺼낸 순서)</div>
+        <div class="queue" id="gClosed"></div>
+        <ol class="log" id="gLog"></ol>
+        <div class="result" id="gRes"></div>
+      </div>
+      <div class="card panel a" id="aPanel">
+        <h2><span class="dot" style="background:var(--as)"></span>A* 탐색</h2>
+        <div class="rule">f(n) = g(n) + h(n) · 온 거리 + 남은 예상 거리가 가장 작은 노드부터</div>
+        <svg id="svgAstar" viewBox="0 0 1000 600"></svg>
+        <div class="msg" id="aMsg"></div>
+        <div class="qlabel">열린 목록 (왼쪽이 다음에 꺼낼 노드)</div>
+        <div class="queue" id="aOpen"></div>
+        <div class="qlabel">닫힌 목록 (꺼낸 순서)</div>
+        <div class="queue" id="aClosed"></div>
+        <ol class="log" id="aLog"></ol>
+        <div class="result" id="aRes"></div>
+      </div>
+    </section>
+    <div class="legend">
+      <em><span class="sw" style="border-color:var(--edge);border-style:dashed"></span>열린 목록</em>
+      <em><span class="sw" style="border-color:var(--gr);background:var(--gr-soft)"></span><span class="sw" style="border-color:var(--as);background:var(--as-soft)"></span>닫힌 목록</em>
+      <em><span class="sw" style="border-color:var(--sel)"></span>지금 꺼낸 노드</em>
+      <em>점선 = 발견한 길 · 굵은 선 = 최종 경로 · 보라색 = 직접 입력한 값</em>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const editor = $('#editor'), svgG = $('#svgGreedy'), svgA = $('#svgAstar'), wrapEl = $('#edWrap'), pop = $('#pop');
+const UNIT = 20, STORE = 'bfLab-v1';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= 미션 지도 ================= */
+const MISSION_MAP = {
+  nodes: [
+    {id:0, label:'S', name:'정문',   x:90,  y:300, h:null},
+    {id:1, label:'A', name:'과학관', x:300, y:130, h:null},
+    {id:2, label:'B', name:'운동장', x:310, y:470, h:null},
+    {id:3, label:'C', name:'본관',   x:520, y:290, h:null},
+    {id:4, label:'D', name:'매점',   x:600, y:500, h:null},
+    {id:5, label:'E', name:'체육관', x:700, y:110, h:null},
+    {id:6, label:'G', name:'기숙사', x:910, y:320, h:null}],
+  edges: [[0,1],[0,2],[1,3],[2,3],[2,4],[3,6,45],[3,5],[5,6],[4,6,30],[1,5]].map(([u,v,w],i) => ({id:i, u, v, w:w ?? null})),
+  start:0, goal:6
+};
+const clone = g => JSON.parse(JSON.stringify(g));
+
+/* ================= 상태 ================= */
+let D = {
+  team:{cls:'', name:'', mem:''},
+  m1:{order:[], path:[], cost:'', opt:null, checked:false, tries:0, first:null},
+  m2:{order:[], path:[], cost:'', opt:null, checked:false, tries:0, first:null},
+  m3:{title:'', map:{nodes:[], edges:[], start:null, goal:null}},
+  m4:{q1:'', q2:'', q3:''},
+  submitted:null
+};
+try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) D = Object.assign(D, s); } catch (e) {}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(D)); } catch (e) {} }
+
+const graphs = { m1: clone(MISSION_MAP), m2: clone(MISSION_MAP), m3: D.m3.map, view: {nodes:[], edges:[], start:null, goal:null} };
+let tab = 'start', ctx = 'm1', G = graphs.m1, viewTitle = '';
+let mode = 'draw', selected = null, history = [];
+let R = null, step = 0, timer = null, popTarget = null;
+let VB = {x:0, y:0, w:1000, h:600};
+const editable = () => ctx === 'm3' || ctx === 'view';
+
+/* ================= 엔진 ================= */
+const NMap = g => Object.fromEntries(g.nodes.map(n => [n.id, n]));
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function wOf(e, NB) { return e.w != null ? e.w : Math.max(1, Math.ceil(dist(NB[e.u], NB[e.v]) / UNIT)); }
+function hOf(n, NB, g) { if (n.h != null) return n.h; if (g.goal == null || !NB[g.goal]) return 0; return Math.floor(dist(n, NB[g.goal]) / UNIT); }
+function ensureEnds(g) {
+  const ids = g.nodes.map(n => n.id);
+  if (!ids.includes(g.start)) g.start = ids.length ? ids[0] : null;
+  if (!ids.includes(g.goal) || g.goal === g.start) g.goal = ids.length > 1 ? ids.filter(i => i !== g.start).pop() : null;
+}
+function buildAdj(g, NB) {
+  const adj = {}; g.nodes.forEach(n => adj[n.id] = []);
+  g.edges.forEach(e => { const w = wOf(e, NB); adj[e.u].push({to:e.v, w}); adj[e.v].push({to:e.u, w}); });
+  Object.values(adj).forEach(l => l.sort((p, q) => NB[p.to].label.localeCompare(NB[q.to].label)));
+  return adj;
+}
+function dijkstra(g, src, adj) {
+  const d = {}; g.nodes.forEach(n => d[n.id] = Infinity); d[src] = 0;
+  const done = new Set();
+  while (true) {
+    let u = null; for (const n of g.nodes) if (!done.has(n.id) && d[n.id] < Infinity && (u === null || d[n.id] < d[u])) u = n.id;
+    if (u === null) break; done.add(u);
+    for (const x of adj[u]) if (d[u] + x.w < d[x.to]) d[x.to] = d[u] + x.w;
+  }
+  return d;
+}
+function search(kind, g, NB, adj, H) {
+  const lab = id => NB[id].label, start = g.start, goal = g.goal;
+  const key = o => kind === 'greedy' ? o.h : o.g + o.h;
+  const cmp = (a, b) => key(a) - key(b) || a.h - b.h || lab(a.id).localeCompare(lab(b.id));
+  const open = [{id:start, g:0, h:H[start]}], closed = [], parent = {[start]:null}, gBest = {[start]:0};
+  const snap = (cur, added, updated, msg, done) => ({cur, open:open.map(o => ({...o})), closed:[...closed], parent:{...parent}, g:{...gBest}, added, updated, msg, done:!!done});
+  const trace = [snap(null, [start], [], `출발 ${lab(start)}을(를) 열린 목록에 넣음`)];
+  let found = false, guard = 0;
+  while (open.length && guard++ < 400) {
+    open.sort(cmp);
+    const c = open.shift(); closed.push(c.id);
+    let msg = `${lab(c.id)} 꺼냄 (${kind === 'greedy' ? 'h=' + c.h : 'f=' + c.g + '+' + c.h + '=' + (c.g + c.h)})`;
+    if (c.id === goal) { found = true; trace.push(snap(c, [], [], msg + ' → 🏁 도착! 탐색 종료', true)); break; }
+    const added = [], updated = [];
+    for (const x of adj[c.id]) {
+      const ng = c.g + x.w, inO = open.find(o => o.id === x.to), inC = closed.includes(x.to);
+      if (kind === 'greedy') { if (inO || inC) continue; open.push({id:x.to, g:ng, h:H[x.to]}); parent[x.to] = c.id; gBest[x.to] = ng; added.push(x.to); }
+      else if (inO) { if (ng < inO.g) { inO.g = ng; parent[x.to] = c.id; gBest[x.to] = ng; updated.push(x.to); } }
+      else if (inC) { if (ng < gBest[x.to]) { closed.splice(closed.indexOf(x.to), 1); open.push({id:x.to, g:ng, h:H[x.to]}); parent[x.to] = c.id; gBest[x.to] = ng; updated.push(x.to); } }
+      else { open.push({id:x.to, g:ng, h:H[x.to]}); parent[x.to] = c.id; gBest[x.to] = ng; added.push(x.to); }
+    }
+    open.sort(cmp);
+    if (added.length) msg += ' → ' + added.map(lab).join(', ') + ' 추가';
+    if (updated.length) msg += (added.length ? ' · ' : ' → ') + updated.map(lab).join(', ') + ' 더 짧은 길로 갱신';
+    if (!added.length && !updated.length) msg += ' → 새로 넣을 이웃 없음';
+    trace.push(snap(c, added, updated, msg));
+  }
+  let path = null, cost = null;
+  if (found) {
+    path = []; for (let v = goal; v != null; v = parent[v]) path.unshift(v);
+    cost = 0; for (let i = 0; i + 1 < path.length; i++) cost += adj[path[i]].find(x => x.to === path[i+1]).w;
+  } else trace[trace.length - 1].msg += ' · 열린 목록이 비어 도착점에 갈 수 없음';
+  return {trace, found, path, cost, expanded:trace.length - 1, order:trace.slice(1).map(t => t.cur.id)};
+}
+function solve(g) {
+  ensureEnds(g);
+  const NB = NMap(g), H = {};
+  g.nodes.forEach(n => H[n.id] = hOf(n, NB, g));
+  if (g.start == null || g.goal == null) return {ready:false, H, reason: g.nodes.length ? '노드를 2개 이상 만들어 주세요.' : '빈 곳을 탭해 노드를 만들어 보세요.'};
+  const adj = buildAdj(g, NB), toGoal = dijkstra(g, g.goal, adj);
+  const over = g.nodes.filter(n => toGoal[n.id] < Infinity && H[n.id] > toGoal[n.id]).map(n => n.id);
+  return {ready:true, H, opt:toGoal[g.start], over, greedy:search('greedy', g, NB, adj, H), astar:search('astar', g, NB, adj, H)};
+}
+const MISSION_R = solve(clone(MISSION_MAP));
+
+/* ================= 화면 크기 ================= */
+function updateVB() {
+  const narrow = window.innerWidth < 640;
+  VB = narrow ? {x:0, y:-130, w:1000, h:860} : {x:0, y:0, w:1000, h:600};
+  [editor, svgG, svgA].forEach(s => s.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`));
+  Object.values(graphs).forEach(g => g.nodes.forEach(clampNode));
+}
+function clampNode(n) {
+  const m = 45;
+  n.x = Math.min(VB.x + VB.w - m, Math.max(VB.x + m, n.x));
+  n.y = Math.min(VB.y + VB.h - m, Math.max(VB.y + m + 45, n.y));
+}
+const scaleOf = svg => Math.max(1, 680 / (svg.clientWidth || 680));
+
+/* ================= 편집 ================= */
+function nextLabel() {
+  const used = new Set(G.nodes.map(n => n.label));
+  for (let i = 0; i < 26; i++) { const c = String.fromCharCode(65 + i); if (!used.has(c)) return c; }
+  let k = 1; while (used.has('V' + k)) k++; return 'V' + k;
+}
+const snapshot = () => JSON.stringify(G);
+function pushHistory(s) { history.push(s || snapshot()); if (history.length > 60) history.shift(); }
+function setGraph(obj) { G.nodes = obj.nodes; G.edges = obj.edges; G.start = obj.start; G.goal = obj.goal; }
+function undo() { if (!history.length) return; setGraph(JSON.parse(history.pop())); selected = null; closePop(); onChange(); }
+const newId = arr => arr.reduce((m, x) => Math.max(m, x.id), -1) + 1;
+function addNode(p) { const n = {id:newId(G.nodes), label:nextLabel(), x:p.x, y:p.y, h:null}; clampNode(n); G.nodes.push(n); }
+const hasEdge = (a, b) => G.edges.some(e => (e.u===a&&e.v===b)||(e.u===b&&e.v===a));
+function addEdge(a, b) { if (a === b || hasEdge(a, b)) return false; G.edges.push({id:newId(G.edges), u:a, v:b, w:null}); return true; }
+function removeNode(id) { G.nodes = G.nodes.filter(n => n.id !== id); G.edges = G.edges.filter(e => e.u !== id && e.v !== id); if (selected === id) selected = null; }
+function removeEdge(id) { G.edges = G.edges.filter(e => e.id !== id); }
+
+/* ================= 그리기 도우미 ================= */
+function geom(e, NB) { const A = NB[e.u], B = NB[e.v]; return {d:`M${A.x} ${A.y} L${B.x} ${B.y}`, mx:(A.x+B.x)/2, my:(A.y+B.y)/2}; }
+const findEdge = (a, b) => G.edges.find(e => (e.u===a&&e.v===b)||(e.u===b&&e.v===a));
+function pill(cls, x, y, txt, S, fs) {
+  const w = (String(txt).length * 0.62 + 1.1) * fs * S, h = fs * 1.6 * S;
+  return `<g class="${cls}"><rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" rx="${h/2}" stroke-width="${1.5*S}"/><text x="${x}" y="${y}" font-size="${fs*S}">${txt}</text></g>`;
+}
+function tag(n, S, r) {
+  if (n.id !== G.start && n.id !== G.goal) return '';
+  const y = n.y - r - 38*S, cls = n.id === G.start ? 'tg' : 'tg goal', t = n.id === G.start ? '출발' : '도착';
+  return `<g class="${cls}"><rect x="${n.x - 17*S}" y="${y - 11*S}" width="${34*S}" height="${22*S}" rx="${6*S}"/><text x="${n.x}" y="${y}" font-size="${12*S}">${t}</text></g>`;
+}
+
+/* ================= 편집 영역 ================= */
+function renderEditor() {
+  const S = scaleOf(editor), r = 22*S, NB = NMap(G);
+  let h = '';
+  G.edges.forEach(e => { const g = geom(e, NB);
+    h += `<path class="e-hit" data-edge="${e.id}" d="${g.d}" stroke-width="${28*S}"/><path class="e" d="${g.d}" stroke-width="${4.5*S}"/>`; });
+  G.edges.forEach(e => { const g = geom(e, NB); h += pill('wp' + (e.w != null ? ' cu' : ''), g.mx, g.my, wOf(e, NB), S, 13); });
+  G.nodes.forEach(n => {
+    h += `<g data-node="${n.id}" class="nd${n.id===selected?' sel':''}">
+      <circle class="hit" cx="${n.x}" cy="${n.y}" r="${r*1.6}"/>
+      <circle class="c" cx="${n.x}" cy="${n.y}" r="${r}" stroke-width="${3*S}"/>
+      <text class="lb" x="${n.x}" y="${n.y}" font-size="${19*S}">${esc(n.label)}</text>
+      <text class="hv${n.h != null ? ' cu' : ''}" x="${n.x}" y="${n.y - r - 12*S}" font-size="${13*S}">h=${R.H[n.id] ?? 0}</text>
+      ${n.name ? `<text class="nm" x="${n.x}" y="${n.y + r + 4*S}" font-size="${13*S}">${esc(n.name)}</text>` : ''}
+      ${tag(n, S, r)}
+    </g>`;
+  });
+  if (!G.nodes.length) h += `<text class="empty" x="500" y="300" font-size="${24*S}">빈 곳을 탭해 노드를 추가하세요</text>`;
+  editor.innerHTML = h;
+  editor.classList.toggle('erase', mode === 'erase');
+  editor.classList.toggle('edit', mode === 'edit');
+  editor.classList.toggle('ro', !editable());
+}
+
+/* ================= 비교 패널 ================= */
+function drawPanel(svg, kind) {
+  const S = scaleOf(svg), r = 20*S, NB = NMap(G), sfx = kind === 'greedy' ? 'g' : 'a';
+  let h = '';
+  G.edges.forEach(e => h += `<path class="b" d="${geom(e, NB).d}" stroke-width="${4*S}"/>`);
+  if (!R.ready) { G.nodes.forEach(n => h += `<g class="pn"><circle class="c" cx="${n.x}" cy="${n.y}" r="${r}" stroke-width="${2.5*S}"/><text class="lb" x="${n.x}" y="${n.y}" font-size="${17*S}">${esc(n.label)}</text></g>`); svg.innerHTML = h; return; }
+  const res = R[kind], T = res.trace[Math.min(step, res.trace.length - 1)];
+  const openSet = new Set(T.open.map(o => o.id)), closedSet = new Set(T.closed);
+  for (const [v, p] of Object.entries(T.parent)) if (p != null) { const e = findEdge(+v, p); if (e) h += `<path class="tree-${sfx}" d="${geom(e, NB).d}" stroke-width="${5*S}"/>`; }
+  if (T.done && res.path) for (let i = 0; i + 1 < res.path.length; i++) { const e = findEdge(res.path[i], res.path[i+1]); h += `<path class="path-${sfx}" d="${geom(e, NB).d}" stroke-width="${10*S}"/>`; }
+  G.edges.forEach(e => { const g = geom(e, NB); h += pill('wp' + (e.w != null ? ' cu' : ''), g.mx, g.my, wOf(e, NB), S, 12); });
+  G.nodes.forEach(n => {
+    const st = closedSet.has(n.id) ? 'closed-' + sfx : openSet.has(n.id) ? 'open-' + sfx : '';
+    h += `<g class="pn ${st}">`;
+    if (T.cur && T.cur.id === n.id) h += `<circle class="ring" cx="${n.x}" cy="${n.y}" r="${r + 9*S}" stroke-width="${3.5*S}"/>`;
+    h += `<circle class="c" cx="${n.x}" cy="${n.y}" r="${r}" stroke-width="${2.5*S}"/><text class="lb" x="${n.x}" y="${n.y}" font-size="${17*S}">${esc(n.label)}</text>`;
+    const known = T.g[n.id] !== undefined, hh = R.H[n.id];
+    const txt = kind === 'greedy' || !known ? `h=${hh}` : `${T.g[n.id]}+${hh}=${T.g[n.id] + hh}`;
+    h += pill('vb' + (known ? ' on-' + sfx : ''), n.x, n.y - r - 14*S, txt, S, 12);
+    h += tag(n, S, r) + '</g>';
+  });
+  svg.innerHTML = h;
+}
+const hideOpt = () => (ctx === 'm1') || (ctx === 'm2' && !D.m2.checked);
+function panelInfo(kind, pre) {
+  const NB = NMap(G), lab = id => esc(NB[id].label);
+  if (!R.ready) { $(pre+'Msg').textContent = R.reason; ['Open','Closed'].forEach(k => $(pre+k).innerHTML = ''); $(pre+'Log').innerHTML = ''; $(pre+'Res').textContent = ''; return; }
+  const res = R[kind], s = Math.min(step, res.trace.length - 1), T = res.trace[s];
+  $(pre+'Msg').textContent = `단계 ${s}: ${T.msg}`;
+  $(pre+'Open').innerHTML = T.open.length ? T.open.map((o, i) => {
+    const v = kind === 'greedy' ? `h=${o.h}` : `${o.g}+${o.h}=${o.g + o.h}`;
+    const cls = ['q', i === 0 && !T.done ? 'next' : '', T.added.includes(o.id) ? 'new' : '', T.updated.includes(o.id) ? 'upd' : ''].join(' ');
+    return `<span class="${cls}"><b>${lab(o.id)}</b>${v}</span>`;
+  }).join('') : '<span class="empty-q">비어 있음</span>';
+  $(pre+'Closed').innerHTML = T.closed.length ? T.closed.map(id => `<span class="q"><b>${lab(id)}</b></span>`).join('') : '<span class="empty-q">비어 있음</span>';
+  const log = $(pre+'Log');
+  log.innerHTML = res.trace.slice(0, s + 1).map((t, i) => `<li value="${i}" class="${i === s ? 'cur' : ''}">${esc(t.msg)}</li>`).join('');
+  log.scrollTop = log.scrollHeight;
+  const end = s === res.trace.length - 1;
+  $(pre+'Res').innerHTML = !end ? '끝까지 재생하면 결과가 나옵니다.' :
+    res.found ? `경로 <b>${res.path.map(lab).join(' → ')}</b> · 총 거리 <b>${res.cost}</b> · 확장 <b>${res.expanded}</b>번 · ` +
+      (res.cost === R.opt ? '<span class="ok">최단 경로 ✓</span>' : `<span class="no">최단 아님 ✕${hideOpt() ? '' : ' (최단 ' + R.opt + ')'}</span>`)
+    : '<span class="no">도착점까지 가는 길이 없습니다.</span>';
+}
+function renderSummary() {
+  const NB = NMap(G), lab = id => esc(NB[id].label), body = $('#sumBody');
+  const showA = ctx !== 'm1';
+  $$('.acol').forEach(el => el.hidden = !showA);
+  if (!R.ready) { body.innerHTML = `<tr><td colspan="3" class="muted" style="font-weight:400">${R.reason}</td></tr>`; return; }
+  const g = R.greedy, a = R.astar;
+  const cell = (r, f) => r.found ? f(r) : '-';
+  const optc = r => !r.found ? '<span class="no">길 없음</span>' : r.cost === R.opt ? '<span class="ok">✓ 최단</span>' : `<span class="no">✕${hideOpt() ? '' : ' (최단 ' + R.opt + ')'}</span>`;
+  const row = (t, gv, av) => `<tr><td>${t}</td><td>${gv}</td>${showA ? `<td>${av}</td>` : ''}</tr>`;
+  body.innerHTML = row('찾은 경로', cell(g, r => r.path.map(lab).join('→')), cell(a, r => r.path.map(lab).join('→'))) +
+    row('총 거리', cell(g, r => r.cost), cell(a, r => r.cost)) +
+    row('확장한 노드 수', g.expanded + '번', a.expanded + '번') +
+    row('최단 경로인가?', optc(g), optc(a));
+}
+function renderBenchInfo() {
+  const NB = NMap(G);
+  let chips = `<span class="chip">노드 <b>${G.nodes.length}</b></span><span class="chip">간선 <b>${G.edges.length}</b></span>`;
+  if (R.ready) {
+    chips += `<span class="chip">출발 <b>${esc(NB[G.start].label)}</b> → 도착 <b>${esc(NB[G.goal].label)}</b></span>`;
+    if (!hideOpt()) chips += `<span class="chip">실제 최단 거리 <b>${R.opt === Infinity ? '길 없음' : R.opt}</b></span>`;
+    if (R.over.length) chips += `<span class="chip warn">⚠ h가 실제 남은 거리보다 큰 노드: ${R.over.map(id => esc(NB[id].label)).join(', ')}</span>`;
+  }
+  $('#chips').innerHTML = chips;
+  $('#stepLabel').textContent = `단계 ${Math.min(step, maxSteps())} / ${maxSteps()}`;
+  $('#play').textContent = timer ? '⏸ 정지' : '▶ 재생';
+  const sel = selected !== null && NB[selected];
+  $('#status').innerHTML = !editable() ? '이 지도는 미션용이라 고칠 수 없어요. 간선 숫자(거리)와 h 값을 보고 예측하세요.'
+    : mode === 'erase' ? '🧹 지울 노드나 간선을 탭하세요.'
+    : mode === 'edit' ? '🔢 간선을 탭하면 거리, 노드를 탭하면 h 값을 바꿀 수 있어요.'
+    : mode === 'start' ? '🚩 출발점으로 정할 노드를 탭하세요.'
+    : mode === 'goal' ? '🏁 도착점으로 정할 노드를 탭하세요.'
+    : sel ? `노드 <b>${esc(sel.label)}</b> 선택됨 → 연결할 노드를 탭하세요 (빈 곳 탭: 선택 해제)`
+    : '빈 곳 탭: 노드 추가 · 노드 탭 → 다른 노드 탭: 길 연결 · 끌기: 노드 이동';
+}
+const maxSteps = () => {
+  if (!R || !R.ready) return 0;
+  return ctx === 'm1' ? R.greedy.trace.length - 1 : Math.max(R.greedy.trace.length, R.astar.trace.length) - 1;
+};
+const locked = () => (ctx === 'm1' && !D.m1.checked) || (ctx === 'm2' && !D.m2.checked);
+
+function renderBench() {
+  renderEditor();
+  const lk = locked();
+  $('#lockbox').hidden = !lk;
+  $('#results').hidden = lk || !benchVisible();
+  $('#aPanel').hidden = ctx === 'm1';
+  $('#compare').classList.toggle('two', ctx !== 'm1');
+  if (!lk) { drawPanel(svgG, 'greedy'); if (ctx !== 'm1') drawPanel(svgA, 'astar'); panelInfo('greedy', '#g'); if (ctx !== 'm1') panelInfo('astar', '#a'); renderSummary(); }
+  renderBenchInfo();
+  $('#toolbar').hidden = !editable();
+}
+function onChange(keep) {
+  stop(); R = solve(G); step = keep ? Math.min(step, maxSteps()) : 0;
+  if (ctx === 'm3') { D.m3.map = G; save(); renderTrap(); renderTabs(); }
+  renderBench();
+}
+
+/* ================= 값 편집 팝업 ================= */
+function openPop(kind, id, sx, sy) {
+  const NB = NMap(G);
+  popTarget = {kind, id};
+  if (kind === 'edge') { const e = G.edges.find(e => e.id === id); $('#popTitle').textContent = `${NB[e.u].label}–${NB[e.v].label} 사이 거리 (자동값 ${Math.max(1, Math.ceil(dist(NB[e.u], NB[e.v]) / UNIT))})`; $('#popIn').value = wOf(e, NB); }
+  else { const n = NB[id]; $('#popTitle').textContent = `${n.label}의 h (목표까지 예상 거리)`; $('#popIn').value = R.H[id]; }
+  pop.hidden = false;
+  const pt = editor.createSVGPoint(); pt.x = sx; pt.y = sy;
+  const c = pt.matrixTransform(editor.getScreenCTM()), box = wrapEl.getBoundingClientRect();
+  pop.style.left = Math.max(4, Math.min(box.width - pop.offsetWidth - 4, c.x - box.left - pop.offsetWidth / 2)) + 'px';
+  pop.style.top = Math.max(4, Math.min(box.height - pop.offsetHeight - 4, c.y - box.top + 24)) + 'px';
+  $('#popIn').focus(); $('#popIn').select();
+}
+function closePop() { pop.hidden = true; popTarget = null; }
+function applyPop(auto) {
+  if (!popTarget) return;
+  let v = null;
+  if (!auto) { v = parseFloat($('#popIn').value); if (!isFinite(v) || v < 0) { $('#popIn').focus(); return; } v = Math.round(v * 10) / 10; }
+  if (popTarget.kind === 'edge' && v === 0) v = 0.1;
+  pushHistory();
+  if (popTarget.kind === 'edge') G.edges.find(e => e.id === popTarget.id).w = v;
+  else G.nodes.find(n => n.id === popTarget.id).h = v;
+  closePop(); onChange();
+}
+$('#popOk').onclick = () => applyPop(false);
+$('#popAuto').onclick = () => applyPop(true);
+$('#popX').onclick = closePop;
+$('#popIn').addEventListener('keydown', e => { if (e.key === 'Enter') applyPop(false); if (e.key === 'Escape') closePop(); });
+
+/* ================= 포인터 ================= */
+function svgPoint(ev) { const p = editor.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(editor.getScreenCTM().inverse()); }
+let drag = null;
+editor.addEventListener('pointerdown', ev => {
+  if (!editable()) return;
+  const p = svgPoint(ev), t = ev.target.closest('[data-node],[data-edge]');
+  if (!pop.hidden) { closePop(); if (!t) return; }
+  if (mode === 'erase') {
+    if (!t) return;
+    pushHistory();
+    if (t.dataset.node !== undefined) removeNode(+t.dataset.node); else removeEdge(+t.dataset.edge);
+    onChange(); return;
+  }
+  if (t && t.dataset.node !== undefined) { drag = {id:+t.dataset.node, sx:p.x, sy:p.y, moved:false, snap:snapshot()}; editor.setPointerCapture(ev.pointerId); }
+  else if (t) drag = {edge:+t.dataset.edge};
+  else drag = {empty:true};
+});
+editor.addEventListener('pointermove', ev => {
+  if (!drag || drag.id === undefined) return;
+  const p = svgPoint(ev);
+  if (!drag.moved && Math.hypot(p.x - drag.sx, p.y - drag.sy) > 10 * scaleOf(editor)) drag.moved = true;
+  if (drag.moved) { const n = NMap(G)[drag.id]; n.x = p.x; n.y = p.y; clampNode(n); R = solve(G); step = Math.min(step, maxSteps()); renderBench(); }
+});
+editor.addEventListener('pointerup', ev => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.edge !== undefined) { if (mode === 'edit') { const e = G.edges.find(e => e.id === d.edge), g = geom(e, NMap(G)); openPop('edge', d.edge, g.mx, g.my); } return; }
+  if (d.empty) {
+    if (mode !== 'draw') return;
+    if (selected !== null) selected = null; else { pushHistory(); addNode(svgPoint(ev)); }
+    onChange(); return;
+  }
+  if (d.moved) { pushHistory(d.snap); onChange(); return; }
+  if (mode === 'edit') { const n = NMap(G)[d.id]; openPop('node', d.id, n.x, n.y); return; }
+  if (mode === 'start' || mode === 'goal') {
+    pushHistory();
+    if (mode === 'start') { if (G.goal === d.id) G.goal = G.start; G.start = d.id; }
+    else { if (G.start === d.id) G.start = G.goal; G.goal = d.id; }
+    setMode('draw'); onChange(); return;
+  }
+  if (selected === null) selected = d.id;
+  else if (selected === d.id) selected = null;
+  else { const s = snapshot(); if (addEdge(selected, d.id)) pushHistory(s); selected = d.id; }
+  onChange();
+});
+editor.addEventListener('pointercancel', () => drag = null);
+
+/* ================= 재생 ================= */
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+function setStep(s) { step = Math.max(0, Math.min(maxSteps(), s)); renderBench(); }
+function play() {
+  if (timer) { stop(); renderBenchInfo(); return; }
+  if (!maxSteps()) return;
+  if (step >= maxSteps()) step = 0;
+  renderBench();
+  timer = setInterval(() => { if (step >= maxSteps()) { stop(); renderBenchInfo(); return; } step++; renderBench(); }, +$('#speed').value);
+  renderBenchInfo();
+}
+$('#play').onclick = play;
+$('#first').onclick = () => { stop(); setStep(0); };
+$('#prev').onclick = () => { stop(); setStep(step - 1); };
+$('#next').onclick = () => { stop(); setStep(step + 1); };
+$('#last').onclick = () => { stop(); setStep(maxSteps()); };
+$('#speed').oninput = () => { if (timer) { stop(); play(); } };
+
+const MODES = {draw:'#mDraw', edit:'#mEdit', start:'#mStart', goal:'#mGoal', erase:'#mErase'};
+function setMode(m) { mode = m; selected = null; closePop(); for (const [k, s] of Object.entries(MODES)) $(s).classList.toggle('on', k === m); if (R) renderBench(); }
+for (const [k, s] of Object.entries(MODES)) $(s).onclick = () => setMode(k);
+$('#undo').onclick = undo;
+$('#clear').onclick = () => { if (!G.nodes.length) return; pushHistory(); setGraph({nodes:[], edges:[], start:null, goal:null}); selected = null; closePop(); onChange(); };
+
+/* ================= 예측(미션 1·2) ================= */
+const ML = Object.fromEntries(MISSION_MAP.nodes.map(n => [n.id, n.label]));
+const LABELS = MISSION_MAP.nodes.map(n => n.label).sort();
+const ANSWER = {
+  m1: {order:MISSION_R.greedy.order.map(i => ML[i]), path:MISSION_R.greedy.path.map(i => ML[i]), cost:MISSION_R.greedy.cost, opt:MISSION_R.greedy.cost === MISSION_R.opt},
+  m2: {order:MISSION_R.astar.order.map(i => ML[i]), path:MISSION_R.astar.path.map(i => ML[i]), cost:MISSION_R.astar.cost, opt:MISSION_R.astar.cost === MISSION_R.opt}
+};
+const robot = k => k === 'm1' ? '탐지기 로봇' : 'A* 로봇';
+function grade(k) {
+  const a = D[k], ans = ANSWER[k];
+  const c = [a.order.join() === ans.order.join(), a.path.join() === ans.path.join(), Number(a.cost) === ans.cost && a.cost !== '', a.opt === ans.opt];
+  return {correct:c, score:c.filter(Boolean).length};
+}
+function seqHTML(arr) { return arr.length ? arr.map(x => `<span class="tok">${x}</span>`).join('<span class="ar">→</span>') : '<span class="ph">아래 버튼을 눌러 순서대로 입력</span>'; }
+function renderPredictor(k) {
+  const a = D[k], box = $('#p-' + k), dis = a.checked ? 'disabled' : '';
+  const g = a.checked ? grade(k) : null, ans = ANSWER[k];
+  const fb = (i, txt) => !g ? '' : `<div class="fb">${g.correct[i] ? '<span class="okc">✓ 정답</span>' : `<span class="noc">✕ 정답: ${txt}</span>`}</div>`;
+  const picker = f => `<div class="pick">${LABELS.map(L => `<button ${dis} data-k="${k}" data-f="${f}" data-l="${L}">${L}</button>`).join('')}<button ${dis} data-k="${k}" data-f="${f}" data-l="⌫" aria-label="마지막 지우기">⌫</button></div>`;
+  box.innerHTML = `
+    <div class="qrow"><div class="qt">① ${robot(k)}이 노드를 꺼내는 순서 (닫힌 목록에 들어가는 순서, 출발점 S부터 도착점 G까지)</div>
+      <div class="seq">${seqHTML(a.order)}</div>${picker('order')}${fb(0, ans.order.join(' → '))}</div>
+    <div class="qrow"><div class="qt">② ${robot(k)}이 찾은 경로 (S부터 G까지)</div>
+      <div class="seq">${seqHTML(a.path)}</div>${picker('path')}${fb(1, ans.path.join(' → '))}</div>
+    <div class="qrow"><div class="qt">③ 찾은 경로의 총 거리</div>
+      <input type="number" id="cost-${k}" min="0" inputmode="numeric" value="${esc(a.cost)}" ${dis} style="width:120px">${fb(2, ans.cost)}</div>
+    <div class="qrow"><div class="qt">④ 이 경로가 S에서 G까지의 최단 경로일까요?</div>
+      <div class="yn"><button ${dis} class="${a.opt === true ? 'on' : ''}" data-k="${k}" data-yn="1">예, 최단이다</button><button ${dis} class="${a.opt === false ? 'on' : ''}" data-k="${k}" data-yn="0">아니다, 더 짧은 길이 있다</button></div>${fb(3, ans.opt ? '예' : '아니다')}</div>
+    <div class="actions">
+      ${a.checked
+        ? `<span class="score">이번 결과 ${g.score} / 4</span><span class="small muted">기록된 점수(첫 채점): <b>${a.first.score} / 4</b> · 시도 ${a.tries}번</span><button data-k="${k}" data-act="retry">다시 풀기</button>${k === 'm1' ? '<button class="primary" data-go="m2">미션 2로 →</button>' : '<button class="primary" data-go="m3">미션 3으로 →</button>'}`
+        : `<button class="primary" data-k="${k}" data-act="check">채점하고 시뮬레이터 확인</button><span class="small muted" id="warn-${k}"></span>`}
+    </div>`;
+  const ci = $('#cost-' + k); if (ci) ci.oninput = () => { a.cost = ci.value; save(); };
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.go) { setTab(b.dataset.go); window.scrollTo({top:0, behavior:'smooth'}); return; }
+  const k = b.dataset.k; if (!k || !D[k]) return;
+  const a = D[k];
+  if (b.dataset.f) { const arr = a[b.dataset.f]; if (b.dataset.l === '⌫') arr.pop(); else if (arr.length < 20) arr.push(b.dataset.l); save(); renderPredictor(k); return; }
+  if (b.dataset.yn) { a.opt = b.dataset.yn === '1'; save(); renderPredictor(k); return; }
+  if (b.dataset.act === 'check') {
+    if (!a.order.length || !a.path.length || a.cost === '' || a.opt === null) { $('#warn-' + k).textContent = '네 문항을 모두 입력해 주세요.'; return; }
+    a.checked = true; a.tries++;
+    const g = grade(k);
+    if (!a.first) a.first = {order:[...a.order], path:[...a.path], cost:Number(a.cost), opt:a.opt, score:g.score, correct:g.correct};
+    save(); renderPredictor(k); renderTabs(); onChange();
+    $('#bench').scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  if (b.dataset.act === 'retry') { Object.assign(a, {order:[], path:[], cost:'', opt:null, checked:false}); save(); renderPredictor(k); onChange(); }
+});
+
+/* ================= 함정 지도(미션 3) ================= */
+function trapStatus(g, r) {
+  const items = [];
+  const custom = g.edges.some(e => e.w != null) || g.nodes.some(n => n.h != null);
+  const has5 = g.nodes.length >= 5 && g.edges.length >= 5;
+  const reach = r.ready && r.opt < Infinity;
+  const adm = r.ready && r.over.length === 0;
+  const trap = reach && r.greedy.found && r.greedy.cost > r.opt;
+  items.push({ok:has5, t:'노드 5개 이상, 간선 5개 이상'});
+  items.push({ok:r.ready, t:'출발점과 도착점 지정'});
+  items.push({ok:reach, t:'출발점에서 도착점까지 가는 길이 있음'});
+  items.push({ok:adm, t:'h가 실제 남은 거리보다 크지 않음 (정직한 탐지기)'});
+  items.push({ok:trap, t: trap ? `탐지기 로봇이 최단 경로를 놓침 (탐지기 ${r.greedy.cost} > 최단 ${r.opt})` : '탐지기 로봇이 최단 경로를 놓침 (탐지기 거리 > 최단 거리)'});
+  const pass = items.every(i => i.ok);
+  items.push({ok:pass && !custom, bonus:true, t:'보너스: 거리와 h를 하나도 직접 고치지 않고(자동값만으로) 함정 성공'});
+  return {items, pass, bonus:pass && !custom, greedyCost:r.ready ? r.greedy.cost : null, opt:r.ready && r.opt < Infinity ? r.opt : null};
+}
+function renderTrap() {
+  const r = ctx === 'm3' ? R : solve(graphs.m3), st = trapStatus(graphs.m3, r);
+  $('#trapChecks').innerHTML = st.items.map(i => `<li class="${i.ok ? 'ok' : ''} ${i.bonus ? 'bonus' : ''}">${esc(i.t)}</li>`).join('');
+  const bn = $('#trapBanner');
+  bn.className = 'banner ' + (st.pass ? 'ok' : 'no');
+  bn.textContent = st.pass ? (st.bonus ? '★ 함정 성공 + 보너스 달성! 자동값만으로 탐지기를 속였어요.' : '✓ 함정 성공! 탐지기 로봇이 최단 경로를 놓쳤어요.') : '조건을 모두 만족하면 함정 성공!';
+  return st;
+}
+$('#trapTitle').oninput = e => { D.m3.title = e.target.value; save(); };
+
+/* ================= 생각 정리(미션 4) ================= */
+['q1','q2','q3'].forEach(q => { const t = $('#' + q); t.oninput = () => { D.m4[q] = t.value; save(); renderTabs(); }; });
+
+/* ================= 팀 정보 ================= */
+[['tCls','cls'],['tName','name'],['tMem','mem']].forEach(([id, f]) => { const el = $('#' + id); el.oninput = () => { D.team[f] = el.value; save(); }; });
+
+/* ================= 탭 ================= */
+function done() {
+  return { m1:!!D.m1.first, m2:!!D.m2.first, m3:trapStatus(graphs.m3, ctx === 'm3' && R ? R : solve(graphs.m3)).pass,
+    m4:['q1','q2','q3'].every(q => D.m4[q].trim().length >= 10), submit:!!D.submitted };
+}
+function renderTabs() {
+  const d = done();
+  for (const k of ['m1','m2','m3','m4','submit']) $('#ck-' + k).textContent = d[k] ? '✓' : '';
+  $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  if (tab === 'submit') renderSubSummary();
+}
+const benchVisible = () => ['m1','m2','m3'].includes(tab) || (tab === 'submit' && ctx === 'view');
+function setTab(t) {
+  tab = t;
+  $$('.pane').forEach(p => p.hidden = p.dataset.pane !== t);
+  const newCtx = ['m1','m2','m3'].includes(t) ? t : (t === 'submit' && ctx === 'view') ? 'view' : ctx;
+  switchCtx(newCtx);
+  $('#bench').hidden = !benchVisible();
+  $('#results').hidden = !benchVisible() || locked();
+  if (t === 'm1' || t === 'm2') renderPredictor(t);
+  if (t === 'm3') renderTrap();
+  if (benchVisible()) renderBench();
+  renderTabs();
+  try { localStorage.setItem(STORE + '-tab', t); } catch (e) {}
+}
+function switchCtx(c) {
+  ctx = c; G = graphs[c]; history = []; selected = null; mode = 'draw';
+  for (const [k, s] of Object.entries(MODES)) $(s).classList.toggle('on', k === 'draw');
+  closePop();
+  $('#benchTitle').textContent = c === 'm3' ? '작업대 · 우리 팀 함정 지도' : c === 'view' ? '도전 지도 · ' + viewTitle : '미션 지도 · 캠퍼스 배달';
+  $('#benchSub').textContent = c === 'm3' ? '자동 저장됨' : c === 'view' ? '자유롭게 고쳐 보며 실험할 수 있어요 (저장되지 않음)' : '정문 S → 기숙사 G';
+  R = solve(G); step = 0; stop();
+  renderBench();
+}
+$$('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+
+/* ================= 제출 요약 ================= */
+function payload() {
+  const st = trapStatus(graphs.m3, solve(graphs.m3));
+  const clean = o => JSON.parse(JSON.stringify(o, (k, v) => v === undefined ? null : v));
+  return clean({
+    cls:D.team.cls.trim(), team:D.team.name.trim(), members:D.team.mem.trim(),
+    m1: D.m1.first ? {score:D.m1.first.score, order:D.m1.first.order, path:D.m1.first.path, cost:D.m1.first.cost, opt:D.m1.first.opt, tries:D.m1.tries} : {score:null, tries:0},
+    m2: D.m2.first ? {score:D.m2.first.score, order:D.m2.first.order, path:D.m2.first.path, cost:D.m2.first.cost, opt:D.m2.first.opt, tries:D.m2.tries} : {score:null, tries:0},
+    m3: {title:(D.m3.title || '').trim() || '이름 없는 함정 지도', pass:st.pass, bonus:st.bonus, greedyCost:st.greedyCost, opt:st.opt,
+         map:{nodes:graphs.m3.nodes.map(n => ({id:n.id, label:n.label, name:n.name || null, x:Math.round(n.x), y:Math.round(n.y), h:n.h ?? null})),
+              edges:graphs.m3.edges.map(e => ({id:e.id, u:e.u, v:e.v, w:e.w ?? null})), start:graphs.m3.start ?? null, goal:graphs.m3.goal ?? null}},
+    m4: {q1:D.m4.q1, q2:D.m4.q2, q3:D.m4.q3}
+  });
+}
+function renderSubSummary() {
+  const d = done(), p = payload();
+  const st = v => v ? '<span class="ok">✓ 완료</span>' : '<span class="no">미완료</span>';
+  $('#subSummary').innerHTML =
+    `<tr><td>팀</td><td>${esc(p.cls || '반 미입력')} · ${esc(p.team || '팀 이름 미입력')}<div class="small muted">${esc(p.members || '팀원 미입력')}</div></td></tr>` +
+    `<tr><td>미션 1</td><td>${st(d.m1)} ${p.m1.score != null ? `· ${p.m1.score} / 4점` : ''}</td></tr>` +
+    `<tr><td>미션 2</td><td>${st(d.m2)} ${p.m2.score != null ? `· ${p.m2.score} / 4점` : ''}</td></tr>` +
+    `<tr><td>미션 3</td><td>${st(d.m3)} · ${esc(p.m3.title)} ${p.m3.bonus ? '<b style="color:var(--gold)">★ 보너스</b>' : ''}</td></tr>` +
+    `<tr><td>미션 4</td><td>${st(d.m4)}</td></tr>` +
+    (D.submitted ? `<tr><td>마지막 제출</td><td>${esc(D.submitted)}</td></tr>` : '');
+}
+
+/* ================= 외부(Firestore) 연결용 ================= */
+window.labAPI = {
+  payload,
+  validate() {
+    if (!D.team.cls.trim() || !D.team.name.trim() || !D.team.mem.trim()) return '맨 위에 반, 팀 이름, 팀원을 먼저 입력해 주세요.';
+    const d = done();
+    if (!d.m1 || !d.m2) return '미션 1, 2를 채점까지 마쳐 주세요.';
+    if (!graphs.m3.nodes.length) return '미션 3의 함정 지도를 그려 주세요.';
+    return '';
+  },
+  markSubmitted() { D.submitted = new Date().toLocaleString('ko-KR'); save(); renderTabs(); },
+  loadView(map, title) {
+    graphs.view = clone(map); graphs.view.nodes.forEach(n => { if (n.name === null) delete n.name; });
+    viewTitle = title || '다른 팀 지도';
+    if (tab !== 'submit') { tab = 'submit'; $$('.pane').forEach(p => p.hidden = p.dataset.pane !== 'submit'); }
+    graphs.view.nodes.forEach(clampNode);
+    switchCtx('view');
+    $('#bench').hidden = false; $('#results').hidden = false; renderBench(); renderTabs();
+    $('#bench').scrollIntoView({behavior:'smooth', block:'start'});
+  },
+  escape: esc
+};
+
+/* ================= 시작 ================= */
+let rt;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { updateVB(); renderBench(); }, 120); });
+$('#tCls').value = D.team.cls; $('#tName').value = D.team.name; $('#tMem').value = D.team.mem;
+$('#trapTitle').value = D.m3.title || '';
+['q1','q2','q3'].forEach(q => $('#' + q).value = D.m4[q] || '');
+updateVB();
+let startTab = 'start';
+try { startTab = localStorage.getItem(STORE + '-tab') || 'start'; } catch (e) {}
+if (!['start','m1','m2','m3','m4','submit'].includes(startTab)) startTab = 'start';
+setTab(startTab);
+const syncTeacher = () => { $('#teacherView').hidden = location.hash !== '#teacher'; };
+window.addEventListener('hashchange', syncTeacher); syncTeacher();
+})();
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const $ = s => document.querySelector(s);
+const esc = window.labAPI.escape;
+const subMsg = $('#subMsg');
+const say = (t, bad) => { subMsg.textContent = t; subMsg.style.color = bad ? "var(--bad)" : "var(--sel)"; };
+
+if (firebaseConfig.apiKey.includes("붙여넣기")) {
+  say("아직 firebase-config.js가 설정되지 않아 제출할 수 없습니다. (선생님 설정 필요)", true);
+  $('#gallery').innerHTML = '<li><span class="muted">제출 기능이 아직 설정되지 않았습니다.</span></li>';
+  $('#tBody').innerHTML = '<tr><td colspan="8" class="muted">firebase-config.js를 먼저 설정해 주세요.</td></tr>';
+} else {
+  const db = getFirestore(initializeApp(firebaseConfig));
+  const col = collection(db, "bfLab");
+
+  $('#submitBtn').onclick = async () => {
+    const err = window.labAPI.validate();
+    if (err) return say(err, true);
+    const btn = $('#submitBtn'); btn.disabled = true; say("제출하는 중…");
+    try {
+      await addDoc(col, { ...window.labAPI.payload(), at: serverTimestamp() });
+      window.labAPI.markSubmitted();
+      say("제출했습니다! 다시 고쳐서 제출해도 됩니다.");
+    } catch (e) { say("제출하지 못했습니다: " + e.message, true); }
+    btn.disabled = false;
+  };
+
+  const ts = d => d.at && d.at.toDate ? d.at.toDate().toLocaleString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '방금';
+  onSnapshot(query(col, orderBy("at", "desc"), limit(300)), snap => {
+    const latest = new Map(), count = new Map();
+    snap.forEach(doc => {
+      const d = doc.data(), key = (d.cls || '') + '|' + (d.team || '');
+      count.set(key, (count.get(key) || 0) + 1);
+      if (!latest.has(key)) latest.set(key, d);
+    });
+    const teams = [...latest.values()];
+
+    // 학생용: 다른 팀 함정 지도
+    const gal = $('#gallery'); gal.innerHTML = '';
+    const traps = teams.filter(d => d.m3 && d.m3.pass);
+    if (!traps.length) gal.innerHTML = '<li><span class="muted">아직 함정에 성공한 지도가 없습니다. 첫 번째 팀이 되어 보세요!</span></li>';
+    traps.forEach(d => {
+      const li = document.createElement('li');
+      const t = document.createElement('span');
+      t.innerHTML = `<b>${esc(d.m3.title)}</b> · ${esc(d.cls)} ${esc(d.team)}${d.m3.bonus ? ' <b style="color:var(--gold)">★</b>' : ''}`;
+      const b = document.createElement('button'); b.textContent = '도전하기';
+      b.onclick = () => window.labAPI.loadView(d.m3.map, d.m3.title + ' (' + d.team + ')');
+      li.append(t, b); gal.appendChild(li);
+    });
+
+    // 교사용 현황
+    {
+      const tb = $('#tBody'); tb.innerHTML = '';
+      if (!teams.length) tb.innerHTML = '<tr><td colspan="8" class="muted">아직 제출한 팀이 없습니다.</td></tr>';
+      teams.sort((a, b) => (a.cls || '').localeCompare(b.cls || '') || (a.team || '').localeCompare(b.team || ''));
+      teams.forEach(d => {
+        const key = (d.cls || '') + '|' + (d.team || '');
+        const tr = document.createElement('tr');
+        const sc = m => m && m.score != null ? `${m.score}/4 <span class="small muted">(${m.tries}회)</span>` : '-';
+        const trap = d.m3 ? (d.m3.pass ? `<span class="ok">✓</span>${d.m3.bonus ? ' ★' : ''} ${esc(d.m3.title)}<div class="small muted">탐지기 ${d.m3.greedyCost} / 최단 ${d.m3.opt}</div>` : `<span class="no">✕</span> ${esc(d.m3.title)}`) : '-';
+        tr.innerHTML = `<td>${esc(d.cls)}</td><td>${esc(d.team)}</td><td class="small">${esc(d.members)}</td><td>${sc(d.m1)}</td><td>${sc(d.m2)}</td><td>${trap}</td><td class="small">${ts(d)}<div class="muted">${count.get(key)}회</div></td><td></td>`;
+        const cell = tr.lastElementChild;
+        const b1 = document.createElement('button'); b1.textContent = '답변';
+        const b2 = document.createElement('button'); b2.textContent = '지도'; b2.style.marginLeft = '4px';
+        b2.onclick = () => window.labAPI.loadView(d.m3.map, d.m3.title + ' (' + d.team + ')');
+        cell.append(b1, b2);
+        const tr2 = document.createElement('tr'); tr2.hidden = true;
+        const qa = (q, a) => `<div class="small"><b>${q}</b></div><div class="ans">${esc(a || '(미작성)')}</div>`;
+        const pr = m => m && m.order ? `순서 ${m.order.join('→')} · 경로 ${m.path.join('→')} · 거리 ${m.cost} · 최단 ${m.opt ? '예' : '아니오'}` : '-';
+        tr2.innerHTML = `<td colspan="8"><div class="small"><b>미션1 첫 답</b> ${esc(pr(d.m1))}</div><div class="small"><b>미션2 첫 답</b> ${esc(pr(d.m2))}</div>` +
+          qa('Q1. 탐지기가 최단 경로를 놓친 이유', d.m4 && d.m4.q1) + qa('Q2. A*가 최단을 보장하는 조건', d.m4 && d.m4.q2) + qa('Q3. 함정 지도 아이디어와 실생활 예', d.m4 && d.m4.q3) + '</td>';
+        b1.onclick = () => tr2.hidden = !tr2.hidden;
+        tb.append(tr, tr2);
+      });
+    }
+  }, e => {
+    $('#gallery').innerHTML = `<li><span class="no">목록을 불러오지 못했습니다: ${esc(e.message)}</span></li>`;
+    $('#tBody').innerHTML = `<tr><td colspan="8" class="no">목록을 불러오지 못했습니다: ${esc(e.message)}</td></tr>`;
+  });
+}
+</script>
+</body>
+</html>
