@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>최상우선탐색 시뮬레이터</title>
+<style>
+:root{
+  --bg:#f5f6fa;--card:#ffffff;--ink:#1d2433;--muted:#667085;--line:#e1e4ea;
+  --edge:#98a2b3;--node:#ffffff;--nodeStroke:#344054;--bad:#e5484d;
+  --gr:#e8590c;--gr-soft:#ffe8d6;--as:#2563eb;--as-soft:#dbe7ff;
+  --sel:#12b76a;--sel-soft:#d3f8e2;--btn:#eef0f4;--btn-ink:#1d2433;--pill:#ffffff;--custom:#7c3aed;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0f1420;--card:#171e2c;--ink:#e6e9f0;--muted:#98a2b3;--line:#2a3345;
+  --edge:#5d687d;--node:#222b3d;--nodeStroke:#cfd6e4;--gr-soft:#7c2d12;--as-soft:#1e3a8a;--sel-soft:#064e3b;
+  --btn:#242d40;--btn-ink:#e6e9f0;--pill:#1b2333;--custom:#a78bfa;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0f1420;--card:#171e2c;--ink:#e6e9f0;--muted:#98a2b3;--line:#2a3345;
+  --edge:#5d687d;--node:#222b3d;--nodeStroke:#cfd6e4;--gr-soft:#7c2d12;--as-soft:#1e3a8a;--sel-soft:#064e3b;
+  --btn:#242d40;--btn-ink:#e6e9f0;--pill:#1b2333;--custom:#a78bfa;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+header h1{font-size:clamp(20px,4.5vw,28px);margin:4px 0 2px}
+header p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+button,select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--btn);color:var(--btn-ink);
+  border-radius:10px;padding:8px 12px;min-height:40px;cursor:pointer;touch-action:manipulation}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--sel);outline-offset:1px}
+.seg{display:inline-flex;flex-wrap:wrap;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.seg button{border:0;border-radius:0}
+.seg button.on{background:var(--ink);color:var(--card);font-weight:700}
+.spacer{flex:1}
+#status{font-size:13px;color:var(--muted);margin:4px 2px 8px;min-height:20px}
+svg{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none}
+#edWrap{position:relative}
+#editor{touch-action:none;background:radial-gradient(circle,var(--line) 1.2px,transparent 1.3px) 0 0/24px 24px;border-radius:10px}
+#pop{position:absolute;z-index:6;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;
+  box-shadow:0 8px 24px #0000002a;display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:250px}
+#pop .t{width:100%;font-size:13px;font-weight:700}
+#pop input{width:80px;font:inherit;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+#pop button{min-height:36px;padding:6px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:13px}
+.chip{background:var(--btn);border-radius:999px;padding:3px 10px}
+.chip.warn{color:var(--bad);font-weight:600}
+
+.player{position:sticky;bottom:env(safe-area-inset-bottom,0px);z-index:5;margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 18px #0000001a}
+.player button{min-width:44px}
+#play{background:var(--ink);color:var(--card);font-weight:700;min-width:84px}
+#stepLabel{font-variant-numeric:tabular-nums;font-size:14px;font-weight:600}
+.speed{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-left:auto}
+
+.summary{overflow-x:auto;margin-bottom:12px}
+.summary table td:first-child{white-space:nowrap}
+.compare{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:820px){.compare{grid-template-columns:1fr 1fr}}
+.panel h2{margin:0;font-size:18px;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.panel .rule{font-size:13px;color:var(--muted);margin:2px 0 8px}
+.panel.g{border-top:5px solid var(--gr)}
+.panel.a{border-top:5px solid var(--as)}
+.msg{font-weight:700;margin:8px 0 6px;font-size:14px;min-height:21px}
+.qlabel{font-size:12px;color:var(--muted);margin:6px 0 3px;font-weight:600}
+.queue{display:flex;flex-wrap:wrap;gap:5px;min-height:28px}
+.q{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:2px 8px;background:var(--bg);font-variant-numeric:tabular-nums}
+.q b{margin-right:4px}
+.panel.g .q.next{border-color:var(--gr);background:var(--gr-soft)}
+.panel.a .q.next{border-color:var(--as);background:var(--as-soft)}
+.q.new::after{content:" 새로";font-size:11px;color:var(--sel);font-weight:700}
+.q.upd::after{content:" 갱신";font-size:11px;color:var(--custom);font-weight:700}
+.empty-q{font-size:13px;color:var(--muted)}
+.log{margin:8px 0 0;padding:6px 8px 6px 28px;max-height:150px;overflow:auto;font-size:13px;background:var(--btn);border-radius:8px}
+.log li{color:var(--muted)}
+.log li.cur{color:var(--ink);font-weight:700}
+.result{font-size:13.5px;margin-top:8px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line)}
+.legend{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.legend em{font-style:normal;display:inline-flex;align-items:center;gap:4px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}
+thead th{font-size:13px;color:var(--muted)}
+td:first-child{font-weight:600}
+.tbl{overflow-x:auto;margin-top:12px}
+.ok{color:var(--sel);font-weight:700}.no{color:var(--bad);font-weight:700}
+details{margin-top:12px}
+summary{cursor:pointer;font-weight:700;padding:4px 0}
+details ol{margin:6px 0 0;padding-left:20px;font-size:14px}
+details li{margin:3px 0}
+
+/* SVG */
+.e{stroke:var(--edge);fill:none;pointer-events:none;stroke-linecap:round}
+.e-hit{stroke:transparent;fill:none;pointer-events:stroke;cursor:pointer}
+.erase .e-hit:hover,.edit .e-hit:hover{stroke:#7c3aed33}
+.hit{fill:transparent;cursor:pointer}
+.nd .c{fill:var(--node);stroke:var(--nodeStroke)}
+.nd.sel .c{fill:var(--sel-soft);stroke:var(--sel)}
+.lb{text-anchor:middle;dominant-baseline:central;fill:var(--ink);font-weight:800;pointer-events:none}
+.nm{text-anchor:middle;dominant-baseline:hanging;fill:var(--muted);font-weight:600;pointer-events:none}
+.wp rect{fill:var(--pill);stroke:var(--line)} .wp text{fill:var(--muted);text-anchor:middle;dominant-baseline:central;font-weight:700;pointer-events:none}
+.wp.cu rect{stroke:var(--custom)} .wp.cu text{fill:var(--custom)}
+.hv{text-anchor:middle;dominant-baseline:central;fill:var(--muted);font-weight:700;pointer-events:none}
+.hv.cu{fill:var(--custom)}
+.nm,.hv{paint-order:stroke;stroke:var(--card);stroke-width:5px;stroke-linejoin:round}
+.tg rect{fill:var(--sel)} .tg.goal rect{fill:var(--bad)}
+.tg text{fill:#fff;text-anchor:middle;dominant-baseline:central;font-weight:800;pointer-events:none}
+.empty{fill:var(--muted);text-anchor:middle}
+.b{stroke:var(--edge);fill:none;opacity:.55;stroke-linecap:round}
+.tree-g{stroke:var(--gr);fill:none;stroke-dasharray:10 9;opacity:.85}
+.tree-a{stroke:var(--as);fill:none;stroke-dasharray:10 9;opacity:.85}
+.path-g{stroke:var(--gr);fill:none;stroke-linecap:round}
+.path-a{stroke:var(--as);fill:none;stroke-linecap:round}
+.pn .c{fill:var(--node);stroke:var(--edge)}
+.pn.open-g .c{stroke:var(--gr);stroke-dasharray:6 5}
+.pn.open-a .c{stroke:var(--as);stroke-dasharray:6 5}
+.pn.closed-g .c{fill:var(--gr-soft);stroke:var(--gr)}
+.pn.closed-a .c{fill:var(--as-soft);stroke:var(--as)}
+.vb rect{fill:var(--pill);stroke:var(--line)} .vb text{fill:var(--muted);text-anchor:middle;dominant-baseline:central;font-weight:700;pointer-events:none}
+.vb.on-g rect{stroke:var(--gr)} .vb.on-g text{fill:var(--gr)}
+.vb.on-a rect{stroke:var(--as)} .vb.on-a text{fill:var(--as)}
+.ring{fill:none;stroke:var(--sel);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.ring{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>최상우선탐색 시뮬레이터</h1>
+    <p>목표까지의 <b style="color:var(--gr)">예상 거리 h(n)만 보는 최상우선탐색</b>과 <b style="color:var(--as)">지금까지 온 거리 g(n)도 더하는 A* 탐색</b>을 같은 지도에서 비교해 보세요.</p>
+  </header>
+
+  <section class="card">
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="모드">
+        <button id="mDraw" class="on">✏️ 그리기</button>
+        <button id="mEdit">🔢 값 편집</button>
+        <button id="mStart">🚩 출발</button>
+        <button id="mGoal">🏁 도착</button>
+        <button id="mErase">🧹 지우기</button>
+      </div>
+      <button id="undo">↶ 되돌리기</button>
+      <button id="clear">전체 삭제</button>
+      <span class="spacer"></span>
+      <select id="preset" aria-label="예제 지도">
+        <option value="">📚 예제 불러오기</option>
+        <option value="campus">캠퍼스 로봇 배달 (최상우선탐색의 함정)</option>
+        <option value="dead">막다른 골목 (되돌아가기)</option>
+        <option value="grid">교통 체증 도시 (탐색 횟수 비교)</option>
+        <option value="liar">거짓말하는 탐지기 (h가 과대평가)</option>
+      </select>
+    </div>
+    <div id="status"></div>
+    <div id="edWrap">
+      <svg id="editor" viewBox="0 0 1000 600" aria-label="지도 편집 영역"></svg>
+      <div id="pop" hidden>
+        <div class="t" id="popTitle"></div>
+        <input id="popIn" type="number" min="0" step="1" inputmode="numeric" aria-label="값 입력">
+        <button id="popOk">확인</button>
+        <button id="popAuto">자동값</button>
+        <button id="popX" aria-label="닫기">✕</button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <div class="player">
+    <button id="first" title="처음">⏮</button>
+    <button id="prev" title="이전 단계">◀</button>
+    <button id="play">▶ 재생</button>
+    <button id="next" title="다음 단계">▶|</button>
+    <button id="last" title="끝">⏭</button>
+    <span id="stepLabel">단계 0 / 0</span>
+    <label class="speed">속도 <input type="range" id="speed" min="300" max="2000" step="100" value="1000" style="direction:rtl"></label>
+  </div>
+
+  <section class="card summary">
+    <table>
+      <thead><tr><th>결과</th><th style="color:var(--gr)">최상우선탐색</th><th style="color:var(--as)">A* 탐색</th></tr></thead>
+      <tbody id="sumBody"></tbody>
+    </table>
+  </section>
+
+  <section class="compare">
+    <div class="card panel g">
+      <h2><span class="dot" style="background:var(--gr)"></span>최상우선탐색</h2>
+      <div class="rule">평가 함수 <b>f(n) = h(n)</b> · 목표까지 <b>남은 예상 거리</b>가 가장 작은 노드부터 꺼냄</div>
+      <svg id="svgGreedy" viewBox="0 0 1000 600"></svg>
+      <div class="msg" id="gMsg"></div>
+      <div class="qlabel">열린 목록 (우선순위 큐, 왼쪽이 다음에 꺼낼 노드)</div>
+      <div class="queue" id="gOpen"></div>
+      <div class="qlabel">닫힌 목록 (꺼낸 순서)</div>
+      <div class="queue" id="gClosed"></div>
+      <ol class="log" id="gLog"></ol>
+      <div class="result" id="gRes"></div>
+    </div>
+    <div class="card panel a">
+      <h2><span class="dot" style="background:var(--as)"></span>A* 탐색</h2>
+      <div class="rule">평가 함수 <b>f(n) = g(n) + h(n)</b> · <b>온 거리 + 남은 예상 거리</b>가 가장 작은 노드부터 꺼냄</div>
+      <svg id="svgAstar" viewBox="0 0 1000 600"></svg>
+      <div class="msg" id="aMsg"></div>
+      <div class="qlabel">열린 목록 (우선순위 큐, 왼쪽이 다음에 꺼낼 노드)</div>
+      <div class="queue" id="aOpen"></div>
+      <div class="qlabel">닫힌 목록 (꺼낸 순서)</div>
+      <div class="queue" id="aClosed"></div>
+      <ol class="log" id="aLog"></ol>
+      <div class="result" id="aRes"></div>
+    </div>
+  </section>
+  <div class="legend" style="margin-top:8px">
+    <em><span class="sw" style="border-color:var(--edge);border-style:dashed"></span>열린 목록(발견만 함)</em>
+    <em><span class="sw" style="border-color:var(--gr);background:var(--gr-soft)"></span><span class="sw" style="border-color:var(--as);background:var(--as-soft)"></span>닫힌 목록(꺼내서 확장함)</em>
+    <em><span class="sw" style="border-color:var(--sel)"></span>지금 꺼낸 노드</em>
+    <em>점선 간선 : 각 노드를 처음/가장 짧게 발견한 길 · 굵은 선 : 최종 경로</em>
+  </div>
+
+  <section class="card" style="margin-top:12px">
+    <h2 style="margin:0;font-size:18px">한눈에 비교</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>구분</th><th style="color:var(--gr)">최상우선탐색 (탐욕적)</th><th style="color:var(--as)">A* 탐색</th></tr></thead>
+        <tbody>
+          <tr><td>평가 함수</td><td>f(n) = h(n)</td><td>f(n) = g(n) + h(n)</td></tr>
+          <tr><td>보는 정보</td><td>목표까지 남은 예상 거리만</td><td>출발점에서 온 실제 거리 + 남은 예상 거리</td></tr>
+          <tr><td>비유</td><td>목표 방향만 가리키는 탐지기를 든 로봇</td><td>탐지기에 주행 기록계까지 함께 보는 로봇</td></tr>
+          <tr><td>장점</td><td>목표 쪽으로 곧장 달려가 확장하는 노드 수가 적은 편</td><td>h가 실제 거리보다 크지 않으면 <b>최단 경로를 보장</b></td></tr>
+          <tr><td>단점</td><td>최단 경로를 보장하지 않음 (함정에 빠질 수 있음)</td><td>더 많은 노드를 확장해 시간과 메모리가 더 들 수 있음</td></tr>
+          <tr><td>휴리스틱 h(n)</td><td colspan="2">여기서는 기본값으로 <b>목표까지의 직선거리</b>를 씁니다. 🔢 값 편집으로 직접 바꿀 수 있습니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <details>
+      <summary>사용 방법</summary>
+      <ol>
+        <li><b>✏️ 그리기</b>: 빈 곳을 탭하면 노드가 생기고, 노드 → 다른 노드 순서로 탭하면 길(간선)이 연결됩니다. 노드를 끌면 위치가 바뀝니다.</li>
+        <li>간선 위 숫자는 <b>실제 거리(비용)</b>, 노드 위 <b>h</b>는 목표까지의 직선거리입니다. 노드를 옮기면 자동으로 다시 계산됩니다.</li>
+        <li><b>🔢 값 편집</b>: 간선을 탭하면 거리, 노드를 탭하면 h를 직접 입력할 수 있습니다(공사 중인 길, 언덕길 등). 보라색은 직접 입력한 값입니다.</li>
+        <li><b>🚩 출발 / 🏁 도착</b> 버튼을 누른 뒤 노드를 탭해 출발점과 도착점을 정합니다.</li>
+        <li>▶ 재생으로 두 탐색이 열린 목록에서 노드를 하나씩 꺼내는 과정을 비교하세요. 아래 기록은 활동지에 옮겨 적기 좋습니다.</li>
+      </ol>
+    </details>
+  </section>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const editor = $('#editor'), svgG = $('#svgGreedy'), svgA = $('#svgAstar'), wrapEl = $('#edWrap'), pop = $('#pop');
+const UNIT = 20;
+
+let nodes = [], edges = [], nid = 0, eid = 0, start = null, goal = null;
+let mode = 'draw', selected = null, history = [];
+let R = null, step = 0, timer = null, popTarget = null;
+let VB = {x:0, y:0, w:1000, h:600};
+
+const NM = () => Object.fromEntries(nodes.map(n => [n.id, n]));
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const scaleOf = svg => Math.max(1, 680 / (svg.clientWidth || 680));
+function nextLabel() {
+  const used = new Set(nodes.map(n => n.label));
+  for (let i = 0; i < 26; i++) { const c = String.fromCharCode(65 + i); if (!used.has(c)) return c; }
+  let k = 1; while (used.has('V' + k)) k++; return 'V' + k;
+}
+
+/* ---------- 화면 크기 ---------- */
+function updateVB() {
+  const narrow = window.innerWidth < 640;
+  VB = narrow ? {x:0, y:-130, w:1000, h:860} : {x:0, y:0, w:1000, h:600};
+  [editor, svgG, svgA].forEach(s => s.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`));
+  nodes.forEach(clampNode);
+}
+function clampNode(n) {
+  const m = 45;
+  n.x = Math.min(VB.x + VB.w - m, Math.max(VB.x + m, n.x));
+  n.y = Math.min(VB.y + VB.h - m, Math.max(VB.y + m + 45, n.y));
+}
+
+/* ---------- 값 계산 ---------- */
+function wOf(e, NB) { return e.w != null ? e.w : Math.max(1, Math.ceil(dist(NB[e.u], NB[e.v]) / UNIT)); }
+function hOf(n, NB) { if (n.h != null) return n.h; if (goal == null || !NB[goal]) return 0; return Math.floor(dist(n, NB[goal]) / UNIT); }
+function ensureEnds() {
+  const ids = nodes.map(n => n.id);
+  if (!ids.includes(start)) start = ids.length ? ids[0] : null;
+  if (!ids.includes(goal) || goal === start) goal = ids.length > 1 ? ids.filter(i => i !== start).pop() : null;
+}
+
+/* ---------- 되돌리기 ---------- */
+const snapshot = () => JSON.stringify({nodes, edges, nid, eid, start, goal});
+function pushHistory(s) { history.push(s || snapshot()); if (history.length > 60) history.shift(); }
+function undo() {
+  if (!history.length) return;
+  const s = JSON.parse(history.pop());
+  ({nodes, edges, nid, eid, start, goal} = s); selected = null; closePop(); onChange();
+}
+
+/* ---------- 편집 ---------- */
+function addNode(p) { const n = {id:nid++, label:nextLabel(), x:p.x, y:p.y, h:null}; clampNode(n); nodes.push(n); }
+const hasEdge = (a, b) => edges.some(e => (e.u===a&&e.v===b)||(e.u===b&&e.v===a));
+function addEdge(a, b) { if (a === b || hasEdge(a, b)) return false; edges.push({id:eid++, u:a, v:b, w:null}); return true; }
+function removeNode(id) { nodes = nodes.filter(n => n.id !== id); edges = edges.filter(e => e.u !== id && e.v !== id); if (selected === id) selected = null; }
+function removeEdge(id) { edges = edges.filter(e => e.id !== id); }
+
+/* ---------- 탐색 ---------- */
+function buildAdj(NB) {
+  const adj = {}; nodes.forEach(n => adj[n.id] = []);
+  edges.forEach(e => { const w = wOf(e, NB); adj[e.u].push({to:e.v, w}); adj[e.v].push({to:e.u, w}); });
+  Object.values(adj).forEach(l => l.sort((p, q) => NB[p.to].label.localeCompare(NB[q.to].label)));
+  return adj;
+}
+function dijkstra(src, adj) {
+  const d = {}; nodes.forEach(n => d[n.id] = Infinity); d[src] = 0;
+  const done = new Set();
+  while (true) {
+    let u = null; for (const n of nodes) if (!done.has(n.id) && d[n.id] < Infinity && (u === null || d[n.id] < d[u])) u = n.id;
+    if (u === null) break; done.add(u);
+    for (const x of adj[u]) if (d[u] + x.w < d[x.to]) d[x.to] = d[u] + x.w;
+  }
+  return d;
+}
+function search(kind, NB, adj, H) {
+  const lab = id => NB[id].label;
+  const key = o => kind === 'greedy' ? o.h : o.g + o.h;
+  const cmp = (a, b) => key(a) - key(b) || a.h - b.h || lab(a.id).localeCompare(lab(b.id));
+  const open = [{id:start, g:0, h:H[start]}], closed = [], parent = {[start]:null}, gBest = {[start]:0};
+  const snap = (cur, added, updated, msg, done) => ({
+    cur, open: open.map(o => ({...o})), closed: [...closed], parent: {...parent}, g: {...gBest}, added, updated, msg, done:!!done
+  });
+  const trace = [snap(null, [start], [], `출발 ${lab(start)}을(를) 열린 목록에 넣음`)];
+  let found = false, guard = 0;
+  while (open.length && guard++ < 400) {
+    open.sort(cmp);
+    const c = open.shift();
+    closed.push(c.id);
+    const val = kind === 'greedy' ? `h=${c.h}` : `f=${c.g}+${c.h}=${c.g + c.h}`;
+    let msg = `${lab(c.id)} 꺼냄 (${val})`;
+    if (c.id === goal) { found = true; trace.push(snap(c, [], [], msg + ' → 🏁 도착! 탐색 종료', true)); break; }
+    const added = [], updated = [];
+    for (const x of adj[c.id]) {
+      const ng = c.g + x.w, inO = open.find(o => o.id === x.to), inC = closed.includes(x.to);
+      if (kind === 'greedy') {
+        if (inO || inC) continue;
+        open.push({id:x.to, g:ng, h:H[x.to]}); parent[x.to] = c.id; gBest[x.to] = ng; added.push(x.to);
+      } else if (inO) {
+        if (ng < inO.g) { inO.g = ng; parent[x.to] = c.id; gBest[x.to] = ng; updated.push(x.to); }
+      } else if (inC) {
+        if (ng < gBest[x.to]) { closed.splice(closed.indexOf(x.to), 1); open.push({id:x.to, g:ng, h:H[x.to]}); parent[x.to] = c.id; gBest[x.to] = ng; updated.push(x.to); }
+      } else {
+        open.push({id:x.to, g:ng, h:H[x.to]}); parent[x.to] = c.id; gBest[x.to] = ng; added.push(x.to);
+      }
+    }
+    open.sort(cmp);
+    if (added.length) msg += ' → ' + added.map(lab).join(', ') + ' 추가';
+    if (updated.length) msg += (added.length ? ' · ' : ' → ') + updated.map(lab).join(', ') + ' 더 짧은 길로 갱신';
+    if (!added.length && !updated.length) msg += ' → 새로 넣을 이웃 없음';
+    trace.push(snap(c, added, updated, msg));
+  }
+  let path = null, cost = null;
+  if (found) {
+    path = []; for (let v = goal; v != null; v = parent[v]) path.unshift(v);
+    cost = 0;
+    for (let i = 0; i + 1 < path.length; i++) cost += adj[path[i]].find(x => x.to === path[i+1]).w;
+  } else {
+    trace[trace.length - 1].msg += ' · 열린 목록이 비어 도착점에 갈 수 없음';
+  }
+  return {trace, found, path, cost, expanded: trace.length - 1};
+}
+function analyze() {
+  ensureEnds();
+  const NB = NM(), H = {};
+  nodes.forEach(n => H[n.id] = hOf(n, NB));
+  if (start == null || goal == null) return {ready:false, H, reason: nodes.length ? '노드를 2개 이상 만들어 주세요.' : '빈 곳을 탭해 노드를 만들어 보세요.'};
+  const adj = buildAdj(NB);
+  const toGoal = dijkstra(goal, adj);
+  const over = nodes.filter(n => toGoal[n.id] < Infinity && H[n.id] > toGoal[n.id]).map(n => n.id);
+  return { ready:true, H, opt: toGoal[start], over,
+    greedy: search('greedy', NB, adj, H), astar: search('astar', NB, adj, H) };
+}
+const maxSteps = () => R && R.ready ? Math.max(R.greedy.trace.length, R.astar.trace.length) - 1 : 0;
+
+/* ---------- 간선 모양 ---------- */
+function geom(e, NB) { const A = NB[e.u], B = NB[e.v]; return {d:`M${A.x} ${A.y} L${B.x} ${B.y}`, mx:(A.x+B.x)/2, my:(A.y+B.y)/2}; }
+const findEdge = (a, b) => edges.find(e => (e.u===a&&e.v===b)||(e.u===b&&e.v===a));
+function pill(cls, x, y, txt, S, fs) {
+  const w = (String(txt).length * 0.62 + 1.1) * fs * S, h = fs * 1.6 * S;
+  return `<g class="${cls}"><rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" rx="${h/2}" stroke-width="${1.5*S}"/><text x="${x}" y="${y}" font-size="${fs*S}">${txt}</text></g>`;
+}
+function tag(n, S, r) {
+  if (n.id !== start && n.id !== goal) return '';
+  const y = n.y - r - 38*S, cls = n.id === start ? 'tg' : 'tg goal', t = n.id === start ? '출발' : '도착';
+  return `<g class="${cls}"><rect x="${n.x - 17*S}" y="${y - 11*S}" width="${34*S}" height="${22*S}" rx="${6*S}"/><text x="${n.x}" y="${y}" font-size="${12*S}">${t}</text></g>`;
+}
+
+/* ---------- 편집 영역 ---------- */
+function renderEditor() {
+  const S = scaleOf(editor), r = 22*S, NB = NM();
+  let h = '';
+  edges.forEach(e => { const g = geom(e, NB);
+    h += `<path class="e-hit" data-edge="${e.id}" d="${g.d}" stroke-width="${28*S}"/><path class="e" d="${g.d}" stroke-width="${4.5*S}"/>`; });
+  edges.forEach(e => { const g = geom(e, NB); h += pill('wp' + (e.w != null ? ' cu' : ''), g.mx, g.my, wOf(e, NB), S, 13); });
+  nodes.forEach(n => {
+    h += `<g data-node="${n.id}" class="nd${n.id===selected?' sel':''}">
+      <circle class="hit" cx="${n.x}" cy="${n.y}" r="${r*1.6}"/>
+      <circle class="c" cx="${n.x}" cy="${n.y}" r="${r}" stroke-width="${3*S}"/>
+      <text class="lb" x="${n.x}" y="${n.y}" font-size="${19*S}">${n.label}</text>
+      <text class="hv${n.h != null ? ' cu' : ''}" x="${n.x}" y="${n.y - r - 12*S}" font-size="${13*S}">h=${R.H[n.id] ?? 0}</text>
+      ${n.name ? `<text class="nm" x="${n.x}" y="${n.y + r + 4*S}" font-size="${13*S}">${n.name}</text>` : ''}
+      ${tag(n, S, r)}
+    </g>`;
+  });
+  if (!nodes.length) h += `<text class="empty" x="500" y="300" font-size="${24*S}">빈 곳을 탭해 노드를 추가하세요 · 예제도 불러올 수 있어요</text>`;
+  editor.innerHTML = h;
+  editor.classList.toggle('erase', mode === 'erase');
+  editor.classList.toggle('edit', mode === 'edit');
+}
+
+/* ---------- 비교 패널 ---------- */
+function drawPanel(svg, kind) {
+  const S = scaleOf(svg), r = 20*S, NB = NM(), sfx = kind === 'greedy' ? 'g' : 'a';
+  let h = '';
+  edges.forEach(e => h += `<path class="b" d="${geom(e, NB).d}" stroke-width="${4*S}"/>`);
+  if (!R.ready) { nodes.forEach(n => h += `<g class="pn"><circle class="c" cx="${n.x}" cy="${n.y}" r="${r}" stroke-width="${2.5*S}"/><text class="lb" x="${n.x}" y="${n.y}" font-size="${17*S}">${n.label}</text></g>`); svg.innerHTML = h; return; }
+  const res = R[kind], T = res.trace[Math.min(step, res.trace.length - 1)];
+  const openSet = new Set(T.open.map(o => o.id)), closedSet = new Set(T.closed);
+  for (const [v, p] of Object.entries(T.parent)) if (p != null) { const e = findEdge(+v, p); if (e) h += `<path class="tree-${sfx}" d="${geom(e, NB).d}" stroke-width="${5*S}"/>`; }
+  if (T.done && res.path) for (let i = 0; i + 1 < res.path.length; i++) { const e = findEdge(res.path[i], res.path[i+1]); h += `<path class="path-${sfx}" d="${geom(e, NB).d}" stroke-width="${10*S}"/>`; }
+  edges.forEach(e => { const g = geom(e, NB); h += pill('wp' + (e.w != null ? ' cu' : ''), g.mx, g.my, wOf(e, NB), S, 12); });
+  nodes.forEach(n => {
+    const st = closedSet.has(n.id) ? 'closed-' + sfx : openSet.has(n.id) ? 'open-' + sfx : '';
+    h += `<g class="pn ${st}">`;
+    if (T.cur && T.cur.id === n.id) h += `<circle class="ring" cx="${n.x}" cy="${n.y}" r="${r + 9*S}" stroke-width="${3.5*S}"/>`;
+    h += `<circle class="c" cx="${n.x}" cy="${n.y}" r="${r}" stroke-width="${2.5*S}"/><text class="lb" x="${n.x}" y="${n.y}" font-size="${17*S}">${n.label}</text>`;
+    const known = T.g[n.id] !== undefined, hh = R.H[n.id];
+    const txt = kind === 'greedy' || !known ? `h=${hh}` : `${T.g[n.id]}+${hh}=${T.g[n.id] + hh}`;
+    h += pill('vb' + (known ? ' on-' + sfx : ''), n.x, n.y - r - 14*S, txt, S, 12);
+    h += tag(n, S, r) + '</g>';
+  });
+  svg.innerHTML = h;
+}
+
+function panelInfo(kind, pre) {
+  const NB = NM(), lab = id => NB[id].label;
+  if (!R.ready) { $(pre+'Msg').textContent = R.reason; ['Open','Closed'].forEach(k => $(pre+k).innerHTML = ''); $(pre+'Log').innerHTML = ''; $(pre+'Res').textContent = ''; return; }
+  const res = R[kind], s = Math.min(step, res.trace.length - 1), T = res.trace[s];
+  $(pre+'Msg').textContent = `단계 ${s}: ${T.msg}`;
+  $(pre+'Open').innerHTML = T.open.length ? T.open.map((o, i) => {
+    const v = kind === 'greedy' ? `h=${o.h}` : `${o.g}+${o.h}=${o.g + o.h}`;
+    const cls = ['q', i === 0 && !T.done ? 'next' : '', T.added.includes(o.id) ? 'new' : '', T.updated.includes(o.id) ? 'upd' : ''].join(' ');
+    return `<span class="${cls}"><b>${lab(o.id)}</b>${v}</span>`;
+  }).join('') : '<span class="empty-q">비어 있음</span>';
+  $(pre+'Closed').innerHTML = T.closed.length ? T.closed.map(id => `<span class="q"><b>${lab(id)}</b></span>`).join('') : '<span class="empty-q">비어 있음</span>';
+  const log = $(pre+'Log');
+  log.innerHTML = res.trace.slice(0, s + 1).map((t, i) => `<li value="${i}" class="${i === s ? 'cur' : ''}">${t.msg}</li>`).join('');
+  log.scrollTop = log.scrollHeight;
+  const end = s === res.trace.length - 1;
+  $(pre+'Res').innerHTML = !end ? '끝까지 재생하면 결과가 나옵니다.' :
+    res.found ? `경로 <b>${res.path.map(lab).join(' → ')}</b> · 총 거리 <b>${res.cost}</b> · 확장 <b>${res.expanded}</b>번 · ` +
+      (res.cost === R.opt ? '<span class="ok">최단 경로 ✓</span>' : `<span class="no">최단 아님 ✕ (최단 ${R.opt})</span>`)
+    : '<span class="no">도착점까지 가는 길이 없습니다.</span>';
+}
+
+function renderSummary() {
+  const NB = NM(), lab = id => NB[id].label, body = $('#sumBody');
+  if (!R.ready) { body.innerHTML = `<tr><td colspan="3" style="color:var(--muted);font-weight:400">${R.reason}</td></tr>`; return; }
+  const g = R.greedy, a = R.astar;
+  const cell = (r, f) => r.found ? f(r) : '-';
+  const optc = r => !r.found ? '<span class="no">길 없음</span>' : r.cost === R.opt ? '<span class="ok">✓ 최단</span>' : `<span class="no">✕ (최단 ${R.opt})</span>`;
+  body.innerHTML =
+    `<tr><td>찾은 경로</td><td>${cell(g, r => r.path.map(lab).join('→'))}</td><td>${cell(a, r => r.path.map(lab).join('→'))}</td></tr>` +
+    `<tr><td>총 거리</td><td>${cell(g, r => r.cost)}</td><td>${cell(a, r => r.cost)}</td></tr>` +
+    `<tr><td>확장한 노드 수</td><td>${g.expanded}번</td><td>${a.expanded}번</td></tr>` +
+    `<tr><td>최단 경로인가?</td><td>${optc(g)}</td><td>${optc(a)}</td></tr>`;
+}
+
+function renderInfo() {
+  const NB = NM();
+  let chips = `<span class="chip">노드 <b>${nodes.length}</b></span><span class="chip">간선 <b>${edges.length}</b></span>`;
+  if (R.ready) {
+    chips += `<span class="chip">출발 <b>${NB[start].label}</b> → 도착 <b>${NB[goal].label}</b></span>`;
+    chips += `<span class="chip">실제 최단 거리 <b>${R.opt === Infinity ? '길 없음' : R.opt}</b></span>`;
+    if (R.over.length) chips += `<span class="chip warn">⚠ h가 실제 남은 거리보다 큰 노드: ${R.over.map(id => NB[id].label).join(', ')} → A*도 최단을 보장 못함</span>`;
+  }
+  $('#chips').innerHTML = chips;
+  panelInfo('greedy', '#g'); panelInfo('astar', '#a');
+  renderSummary();
+  $('#stepLabel').textContent = `단계 ${Math.min(step, maxSteps())} / ${maxSteps()}`;
+  $('#play').textContent = timer ? '⏸ 정지' : '▶ 재생';
+  const st = $('#status'), sel = selected !== null && NB[selected];
+  st.innerHTML = mode === 'erase' ? '🧹 지울 노드나 간선을 탭하세요.'
+    : mode === 'edit' ? '🔢 간선을 탭하면 거리, 노드를 탭하면 h 값을 바꿀 수 있어요.'
+    : mode === 'start' ? '🚩 출발점으로 정할 노드를 탭하세요.'
+    : mode === 'goal' ? '🏁 도착점으로 정할 노드를 탭하세요.'
+    : sel ? `노드 <b>${sel.label}</b> 선택됨 → 연결할 노드를 탭하세요 (빈 곳 탭: 선택 해제)`
+    : '빈 곳 탭: 노드 추가 · 노드 탭 → 다른 노드 탭: 길 연결 · 끌기: 노드 이동';
+}
+
+function renderAll() { renderEditor(); drawPanel(svgG, 'greedy'); drawPanel(svgA, 'astar'); renderInfo(); }
+function onChange(keepStep) { stop(); R = analyze(); step = keepStep ? Math.min(step, maxSteps()) : 0; renderAll(); }
+
+/* ---------- 값 편집 팝업 ---------- */
+function openPop(kind, id, sx, sy) {
+  const NB = NM();
+  popTarget = {kind, id};
+  if (kind === 'edge') { const e = edges.find(e => e.id === id); $('#popTitle').textContent = `${NB[e.u].label}–${NB[e.v].label} 사이 거리 (자동값 ${Math.max(1, Math.ceil(dist(NB[e.u], NB[e.v]) / UNIT))})`; $('#popIn').value = wOf(e, NB); }
+  else { const n = NB[id]; $('#popTitle').textContent = `${n.label}의 h (목표까지 예상 거리)`; $('#popIn').value = R.H[id]; }
+  pop.hidden = false;
+  const pt = editor.createSVGPoint(); pt.x = sx; pt.y = sy;
+  const c = pt.matrixTransform(editor.getScreenCTM()), box = wrapEl.getBoundingClientRect();
+  const left = Math.max(4, Math.min(box.width - pop.offsetWidth - 4, c.x - box.left - pop.offsetWidth / 2));
+  const top = Math.max(4, Math.min(box.height - pop.offsetHeight - 4, c.y - box.top + 24));
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  $('#popIn').focus(); $('#popIn').select();
+}
+function closePop() { pop.hidden = true; popTarget = null; }
+function applyPop(auto) {
+  if (!popTarget) return;
+  let v = null;
+  if (!auto) { v = parseFloat($('#popIn').value); if (!isFinite(v) || v < 0) { $('#popIn').focus(); return; } v = Math.round(v * 10) / 10; }
+  if (popTarget.kind === 'edge' && v === 0) v = 0.1;
+  pushHistory();
+  if (popTarget.kind === 'edge') edges.find(e => e.id === popTarget.id).w = v;
+  else nodes.find(n => n.id === popTarget.id).h = v;
+  closePop(); onChange();
+}
+$('#popOk').onclick = () => applyPop(false);
+$('#popAuto').onclick = () => applyPop(true);
+$('#popX').onclick = closePop;
+$('#popIn').addEventListener('keydown', e => { if (e.key === 'Enter') applyPop(false); if (e.key === 'Escape') closePop(); });
+
+/* ---------- 포인터 ---------- */
+function svgPoint(ev) { const p = editor.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(editor.getScreenCTM().inverse()); }
+let drag = null;
+editor.addEventListener('pointerdown', ev => {
+  const p = svgPoint(ev), t = ev.target.closest('[data-node],[data-edge]');
+  if (!pop.hidden) { closePop(); if (!t) return; }
+  if (mode === 'erase') {
+    if (!t) return;
+    pushHistory();
+    if (t.dataset.node !== undefined) removeNode(+t.dataset.node); else removeEdge(+t.dataset.edge);
+    onChange(); return;
+  }
+  if (t && t.dataset.node !== undefined) { drag = {id:+t.dataset.node, sx:p.x, sy:p.y, moved:false, snap:snapshot()}; editor.setPointerCapture(ev.pointerId); }
+  else if (t) drag = {edge:+t.dataset.edge, sx:p.x, sy:p.y};
+  else drag = {empty:true, sx:p.x, sy:p.y};
+});
+editor.addEventListener('pointermove', ev => {
+  if (!drag || drag.id === undefined) return;
+  const p = svgPoint(ev);
+  if (!drag.moved && Math.hypot(p.x - drag.sx, p.y - drag.sy) > 10 * scaleOf(editor)) drag.moved = true;
+  if (drag.moved) { const n = NM()[drag.id]; n.x = p.x; n.y = p.y; clampNode(n); R = analyze(); step = Math.min(step, maxSteps()); renderAll(); }
+});
+editor.addEventListener('pointerup', ev => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.edge !== undefined) { if (mode === 'edit') { const e = edges.find(e => e.id === d.edge), NB = NM(), g = geom(e, NB); openPop('edge', d.edge, g.mx, g.my); } return; }
+  if (d.empty) {
+    if (mode !== 'draw') return;
+    if (selected !== null) selected = null; else { pushHistory(); addNode(svgPoint(ev)); }
+    onChange(); return;
+  }
+  if (d.moved) { pushHistory(d.snap); onChange(); return; }
+  if (mode === 'edit') { const n = NM()[d.id]; openPop('node', d.id, n.x, n.y); return; }
+  if (mode === 'start' || mode === 'goal') {
+    pushHistory();
+    if (mode === 'start') { if (goal === d.id) goal = start; start = d.id; }
+    else { if (start === d.id) start = goal; goal = d.id; }
+    setMode('draw'); onChange(); return;
+  }
+  if (selected === null) selected = d.id;
+  else if (selected === d.id) selected = null;
+  else { const s = snapshot(); if (addEdge(selected, d.id)) pushHistory(s); selected = d.id; }
+  onChange();
+});
+editor.addEventListener('pointercancel', () => drag = null);
+
+/* ---------- 재생 ---------- */
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+function setStep(s) { step = Math.max(0, Math.min(maxSteps(), s)); renderAll(); }
+function play() {
+  if (timer) { stop(); renderInfo(); return; }
+  if (!maxSteps()) return;
+  if (step >= maxSteps()) step = 0;
+  renderAll();
+  timer = setInterval(() => { if (step >= maxSteps()) { stop(); renderInfo(); return; } step++; renderAll(); }, +$('#speed').value);
+  renderInfo();
+}
+$('#play').onclick = play;
+$('#first').onclick = () => { stop(); setStep(0); };
+$('#prev').onclick = () => { stop(); setStep(step - 1); };
+$('#next').onclick = () => { stop(); setStep(step + 1); };
+$('#last').onclick = () => { stop(); setStep(maxSteps()); };
+$('#speed').oninput = () => { if (timer) { stop(); play(); } };
+
+/* ---------- 도구 모음 ---------- */
+const MODES = {draw:'#mDraw', edit:'#mEdit', start:'#mStart', goal:'#mGoal', erase:'#mErase'};
+function setMode(m) { mode = m; selected = null; closePop(); for (const [k, s] of Object.entries(MODES)) $(s).classList.toggle('on', k === m); if (R) renderAll(); }
+for (const [k, s] of Object.entries(MODES)) $(s).onclick = () => setMode(k);
+$('#undo').onclick = undo;
+$('#clear').onclick = () => { if (!nodes.length) return; pushHistory(); nodes = []; edges = []; nid = 0; eid = 0; start = goal = null; selected = null; closePop(); onChange(); };
+
+/* ---------- 예제 ---------- */
+function gridPreset() {
+  const pts = [], es = [], C = 4, Rw = 3;
+  for (let j = 0; j < Rw; j++) for (let i = 0; i < C; i++) pts.push({label:String.fromCharCode(65 + j*C + i), x:130 + 247*i, y:110 + 190*j});
+  const jam = {'1-2':40, '5-6':30, '6-10':30, '2-6':35};
+  for (let j = 0; j < Rw; j++) for (let i = 0; i < C; i++) {
+    const k = j*C + i;
+    if (i + 1 < C) es.push([k, k + 1, jam[k + '-' + (k + 1)] ?? null]);
+    if (j + 1 < Rw) es.push([k, k + C, jam[k + '-' + (k + C)] ?? null]);
+  }
+  return {pts, es, s:0, g:C*Rw - 1};
+}
+const PRESETS = {
+  campus: { pts:[
+      {label:'S', name:'정문', x:80, y:300}, {label:'L', name:'도서관', x:300, y:120}, {label:'B', name:'본관', x:450, y:300},
+      {label:'D', name:'식당', x:450, y:500}, {label:'C', name:'체육관', x:650, y:120}, {label:'G', name:'기숙사', x:920, y:300}],
+    es:[[0,1,null],[0,2,null],[0,3,null],[1,2,null],[1,4,null],[2,5,40],[2,3,null],[3,5,35],[4,5,null]], s:0, g:5 },
+  dead: { pts:[
+      {label:'S', x:100, y:330}, {label:'A', x:380, y:330}, {label:'B', x:660, y:330}, {label:'G', x:900, y:330},
+      {label:'P', x:240, y:110}, {label:'Q', x:560, y:80}, {label:'R', x:820, y:140}, {label:'X', x:520, y:520}],
+    es:[[0,1,null],[1,2,null],[1,7,null],[0,4,null],[4,5,null],[5,6,null],[6,3,null]], s:0, g:3 },
+  grid: gridPreset(),
+  liar: { pts:[
+      {label:'S', x:100, y:300}, {label:'A', x:380, y:130}, {label:'B', x:380, y:470}, {label:'C', x:640, y:300}, {label:'G', x:900, y:300}],
+    es:[[0,1,12],[0,2,8],[1,3,12],[2,3,10],[3,4,14],[1,4,40]], s:0, g:4, h:{0:30, 1:20, 2:45, 3:14, 4:0} }
+};
+$('#preset').onchange = e => {
+  const P = PRESETS[e.target.value]; e.target.value = '';
+  if (!P) return;
+  pushHistory();
+  nodes = P.pts.map((p, i) => ({id:i, label:p.label, name:p.name, x:p.x, y:p.y, h: P.h && P.h[i] != null ? P.h[i] : null}));
+  edges = P.es.map(([u, v, w], i) => ({id:i, u, v, w}));
+  nid = nodes.length; eid = edges.length; start = P.s; goal = P.g; selected = null;
+  nodes.forEach(clampNode);
+  mode = 'draw'; for (const [k, s] of Object.entries(MODES)) $(s).classList.toggle('on', k === 'draw');
+  closePop(); onChange();
+};
+
+/* 다른 기능(Firestore 제출 등)에서 쓸 수 있도록 노출 */
+window.graphAPI = {
+  get: () => ({nodes, edges, start, goal}),
+  set: g => { pushHistory(); nodes = g.nodes.map(n => ({...n})); edges = g.edges.map(e => ({...e}));
+    nid = Math.max(-1, ...nodes.map(n => n.id)) + 1; eid = Math.max(-1, ...edges.map(e => e.id)) + 1;
+    start = g.start ?? null; goal = g.goal ?? null; selected = null; nodes.forEach(clampNode); onChange(); }
+};
+
+let rt;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { updateVB(); renderAll(); }, 120); });
+
+updateVB();
+const s0 = PRESETS.campus;
+nodes = s0.pts.map((p, i) => ({id:i, label:p.label, name:p.name, x:p.x, y:p.y, h:null}));
+edges = s0.es.map(([u, v, w], i) => ({id:i, u, v, w}));
+nid = nodes.length; eid = edges.length; start = s0.s; goal = s0.g;
+nodes.forEach(clampNode);
+onChange();
+})();
+</script>
+</body>
+</html>
